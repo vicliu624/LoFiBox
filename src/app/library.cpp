@@ -244,9 +244,10 @@ static bool is_supported_audio(const String& path)
     return (ext == "mp3" || ext == "wav");
 }
 
-static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels)
+static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels, int max_files, bool read_tags,
+                     void (*tick)(), int& files_seen)
 {
-    if (lib.track_count >= kMaxTracks) {
+    if (lib.track_count >= max_files) {
         return;
     }
 
@@ -256,19 +257,27 @@ static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels
     }
 
     File file = root.openNextFile();
-    while (file && lib.track_count < kMaxTracks) {
+    while (file && lib.track_count < max_files) {
         if (file.isDirectory()) {
             if (levels > 0) {
                 String sub = String(file.name());
                 if (!sub.startsWith("/")) {
                     sub = dir + String("/") + sub;
                 }
-                scan_dir(lib, fs, sub, levels - 1);
+                scan_dir(lib, fs, sub, levels - 1, max_files, read_tags, tick, files_seen);
             }
         } else {
             String fname = String(file.name());
             if (!fname.startsWith("/")) {
                 fname = dir + String("/") + fname;
+            }
+            ++files_seen;
+            if (files_seen % 5 == 0) {
+                if (tick) {
+                    tick();
+                } else {
+                    yield();
+                }
             }
             if (!is_supported_audio(fname)) {
                 file = root.openNextFile();
@@ -280,7 +289,9 @@ static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels
             track.added_time = file.getLastWrite();
 
             TagInfo tags;
-            read_id3_tags(fs, fname, tags);
+            if (read_tags) {
+                read_id3_tags(fs, fname, tags);
+            }
 
             String title = tags.title;
             String artist = tags.artist;
@@ -332,9 +343,11 @@ void library_reset(Library& lib)
     lib.album_count = 0;
     lib.genre_count = 0;
     lib.composer_count = 0;
+    lib.scanned = false;
 }
 
-bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth)
+bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth, int max_files, bool read_tags,
+                  void (*tick)())
 {
     library_reset(lib);
     String root = root_dir && root_dir[0] ? root_dir : "/";
@@ -342,12 +355,15 @@ bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth)
         root = String("/") + root;
     }
 
-    scan_dir(lib, fs, root, depth);
-
-    if (lib.track_count == 0 && root != "/") {
-        scan_dir(lib, fs, "/", depth);
+    int limit = max_files;
+    if (limit <= 0 || limit > kMaxTracks) {
+        limit = kMaxTracks;
     }
 
+    int files_seen = 0;
+    scan_dir(lib, fs, root, depth, limit, read_tags, tick, files_seen);
+
+    lib.scanned = true;
     return lib.track_count > 0;
 }
 

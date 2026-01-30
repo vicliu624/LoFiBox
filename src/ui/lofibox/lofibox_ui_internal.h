@@ -7,6 +7,7 @@
 #include "app/player.h"
 #include "ui/screens/common/shell_layout.h"
 #include "ui/screens/list_page/list_page_layout.h"
+#include "ui/screens/main_menu/main_menu_layout.h"
 #include "ui/screens/now_playing/now_playing_layout.h"
 
 namespace lofi::ui
@@ -127,6 +128,7 @@ struct UiState
     PageId current = PageId::MainMenu;
     PageId stack[8] = {PageId::None};
     int depth = 0;
+    int menu_index = 0;
 
     SongContext song_context = SongContext::All;
     AlbumFilter album_filter = AlbumFilter::All;
@@ -148,6 +150,7 @@ struct UiView
     screens::common::layout::RootLayout root{};
     screens::list_page::layout::ListLayout list{};
     screens::now_playing::layout::NowPlayingLayout now{};
+    screens::main_menu::layout::MenuLayout menu{};
 };
 
 struct UiScreen

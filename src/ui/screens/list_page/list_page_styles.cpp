@@ -40,7 +40,7 @@ void init_once()
     lv_style_set_pad_bottom(&s_list, 4);
 
     lv_style_init(&s_row);
-    lv_style_set_radius(&s_row, 2);
+    lv_style_set_radius(&s_row, 0);
     lv_style_set_border_width(&s_row, 0);
     lv_style_set_shadow_width(&s_row, 0);
     lv_style_set_outline_width(&s_row, 0);

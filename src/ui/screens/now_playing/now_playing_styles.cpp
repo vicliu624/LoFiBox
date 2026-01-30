@@ -55,7 +55,7 @@ void init_once()
     lv_style_set_border_width(&s_bar_wrap, 0);
 
     lv_style_init(&s_bar);
-    lv_style_set_radius(&s_bar, 2);
+    lv_style_set_radius(&s_bar, 0);
     lv_style_set_bg_color(&s_bar, lv_color_hex(0x3a3a3a));
     lv_style_set_border_width(&s_bar, 0);
 
@@ -67,7 +67,7 @@ void init_once()
     lv_style_init(&s_knob);
     lv_style_set_bg_color(&s_knob, lv_color_hex(0xf5f5f5));
     lv_style_set_border_width(&s_knob, 0);
-    lv_style_set_radius(&s_knob, 6);
+    lv_style_set_radius(&s_knob, 0);
 
     lv_style_init(&s_controls_row);
     lv_style_set_bg_opa(&s_controls_row, LV_OPA_0);

@@ -21,18 +21,22 @@ void init_once()
 
     lv_style_init(&s_root);
     lv_style_set_bg_color(&s_root, lv_color_hex(0x0b0b0b));
+    lv_style_set_bg_opa(&s_root, LV_OPA_COVER);
     lv_style_set_border_width(&s_root, 0);
     lv_style_set_pad_all(&s_root, 0);
+    lv_style_set_radius(&s_root, 0);
 
     lv_style_init(&s_topbar);
     lv_style_set_bg_color(&s_topbar, lv_color_hex(0x2b2b2b));
     lv_style_set_bg_grad_color(&s_topbar, lv_color_hex(0x0f0f0f));
     lv_style_set_bg_grad_dir(&s_topbar, LV_GRAD_DIR_VER);
+    lv_style_set_bg_opa(&s_topbar, LV_OPA_COVER);
     lv_style_set_border_width(&s_topbar, 1);
     lv_style_set_border_side(&s_topbar, LV_BORDER_SIDE_BOTTOM);
     lv_style_set_border_color(&s_topbar, lv_color_hex(0x3a3a3a));
     lv_style_set_pad_hor(&s_topbar, 10);
     lv_style_set_pad_ver(&s_topbar, 4);
+    lv_style_set_radius(&s_topbar, 0);
 
     lv_style_init(&s_topbar_label);
     lv_style_set_text_font(&s_topbar_label, &lv_font_montserrat_14);

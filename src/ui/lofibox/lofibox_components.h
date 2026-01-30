@@ -21,6 +21,7 @@ struct NavCommand
 void build_page(UiScreen& screen);
 void update_topbar(UiScreen& screen);
 void update_now_playing(UiScreen& screen);
+void update_main_menu(UiScreen& screen);
 NavCommand handle_intent(UiScreen& screen, const UiIntent& intent);
 void reset_items(UiScreen& screen);
 

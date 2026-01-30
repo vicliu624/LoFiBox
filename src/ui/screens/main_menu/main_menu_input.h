@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/screens/list_page/list_page_input.h"
+#include "ui/lofibox/lofibox_ui_internal.h"
 
 namespace lofi::ui::screens::main_menu::input
 {

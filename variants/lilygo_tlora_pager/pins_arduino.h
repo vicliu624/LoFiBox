@@ -84,9 +84,9 @@ static const uint8_t SCK = 35;
 #define EXPANDS_GPS_RST   (7)
 #define EXPANDS_KB_EN     (8)
 #define EXPANDS_GPIO_EN   (9)
-#define EXPANDS_SD_DET    (10)
-#define EXPANDS_SD_PULLEN (11)
-#define EXPANDS_SD_EN     (12)
+#define EXPANDS_SD_DET    (12)
+#define EXPANDS_SD_PULLEN (13)
+#define EXPANDS_SD_EN     (14)
 
 // Peripheral definition exists
 #define USING_AUDIO_CODEC

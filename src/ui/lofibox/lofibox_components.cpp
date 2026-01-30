@@ -58,6 +58,8 @@
 #include "ui/screens/songs/songs_layout.h"
 #include "ui/screens/songs/songs_styles.h"
 #include "ui/ui_common.h"
+#include <SD.h>
+#include "app/library.h"
 
 namespace lofi::ui::components
 {
@@ -66,6 +68,41 @@ namespace
 namespace shell_layout = screens::common::layout;
 namespace shell_styles = screens::common::styles;
 namespace list_layout = screens::list_page::layout;
+
+bool page_needs_library(PageId id)
+{
+    switch (id) {
+    case PageId::Music:
+    case PageId::Artists:
+    case PageId::Albums:
+    case PageId::Songs:
+    case PageId::Genres:
+    case PageId::Composers:
+    case PageId::Compilations:
+    case PageId::Playlists:
+    case PageId::PlaylistDetail:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void scan_tick()
+{
+    lv_timer_handler();
+    yield();
+}
+
+void ensure_library_scanned(UiScreen& screen)
+{
+    if (!screen.library || screen.library->scanned) {
+        return;
+    }
+    if (!board.isSDReady()) {
+        return;
+    }
+    app::library_scan(*screen.library, SD, "/music", 3, 256, false, scan_tick);
+}
 
 struct ListPageApi
 {
@@ -109,8 +146,6 @@ inline ListPageApi make_list_api(void (*init_styles)(), void (*apply_content)(lv
 ListPageApi list_api_for(PageId id)
 {
     switch (id) {
-    case PageId::MainMenu:
-        return LIST_API(screens::main_menu);
     case PageId::Music:
         return LIST_API(screens::music);
     case PageId::Artists:
@@ -136,7 +171,7 @@ ListPageApi list_api_for(PageId id)
     case PageId::About:
         return LIST_API(screens::about);
     default:
-        return LIST_API(screens::main_menu);
+        return LIST_API(screens::music);
     }
 }
 
@@ -569,9 +604,73 @@ static void build_list_page(UiScreen& screen)
     api.focus_first(screen.group, first);
 }
 
+static void build_main_menu(UiScreen& screen)
+{
+    screens::main_menu::styles::init_once();
+    screens::main_menu::styles::apply_content(screen.view.root.content);
+    if (screen.view.root.content) {
+        lv_obj_add_flag(screen.view.root.content, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    }
+
+    screen.view.list = {};
+    screen.view.menu = {};
+    screen.row_count = 0;
+    populate_list_for_page(screen);
+
+    screens::main_menu::layout::MenuLayout layout =
+        screens::main_menu::layout::create_menu(screen.view.root.content);
+    screen.view.menu = layout;
+
+    if (layout.arrow_left) {
+        screens::main_menu::styles::apply_arrow(layout.arrow_left);
+    }
+    if (layout.arrow_right) {
+        screens::main_menu::styles::apply_arrow(layout.arrow_right);
+    }
+
+    for (int i = 0; i < screens::main_menu::layout::kDots; ++i) {
+        if (!layout.dots[i]) {
+            continue;
+        }
+        screens::main_menu::styles::apply_dot(layout.dots[i]);
+    }
+
+    int slots = screens::main_menu::layout::kVisibleItems;
+    if (slots > UiScreen::kMaxItems) {
+        slots = UiScreen::kMaxItems;
+    }
+
+    for (int i = 0; i < slots; ++i) {
+        if (!layout.items[i].button) {
+            continue;
+        }
+        if (screen.row_count >= UiScreen::kMaxItems) {
+            break;
+        }
+
+        screens::main_menu::styles::apply_item(layout.items[i].button);
+        screens::main_menu::styles::apply_label(layout.items[i].label);
+
+        RowMeta& meta = screen.rows[screen.row_count++];
+        meta.intent = {};
+        meta.row = layout.items[i].button;
+        meta.left_label = layout.items[i].label;
+        meta.right_label = nullptr;
+        screens::main_menu::input::attach_row(screen, meta);
+    }
+
+    update_main_menu(screen);
+}
+
 void update_topbar(UiScreen& screen)
 {
     if (!screen.view.root.top_left || !screen.view.root.top_title) {
+        return;
+    }
+    if (screen.state.current == PageId::MainMenu) {
+        lv_label_set_text(screen.view.root.top_left, "");
+        lv_label_set_text(screen.view.root.top_title, "");
+        update_battery(screen);
         return;
     }
     if (screen.state.depth > 0) {
@@ -587,6 +686,124 @@ void update_topbar(UiScreen& screen)
 void update_now_playing(UiScreen& screen)
 {
     screens::now_playing::update(screen);
+}
+
+void update_main_menu(UiScreen& screen)
+{
+    auto& menu = screen.view.menu;
+    if (!menu.wrap) {
+        return;
+    }
+
+    int total = screen.items_count;
+    if (total <= 0) {
+        for (int i = 0; i < screens::main_menu::layout::kVisibleItems; ++i) {
+            if (menu.items[i].button) {
+                lv_obj_add_flag(menu.items[i].button, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+        return;
+    }
+
+    if (screen.state.menu_index < 0) {
+        screen.state.menu_index = 0;
+    } else if (screen.state.menu_index >= total) {
+        screen.state.menu_index = total - 1;
+    }
+
+    int visible = screens::main_menu::layout::kVisibleItems;
+    if (visible > total) {
+        visible = total;
+    }
+
+    constexpr float kSideScale = 0.6f;
+    constexpr lv_coord_t kIconOffsetY = 0;
+    const lv_coord_t slot_width = menu.icon_size + menu.icon_gap;
+
+    for (int i = 0; i < screens::main_menu::layout::kVisibleItems; ++i) {
+        if (!menu.items[i].button) {
+            continue;
+        }
+        if (i >= visible) {
+            lv_obj_add_flag(menu.items[i].button, LV_OBJ_FLAG_HIDDEN);
+            continue;
+        }
+
+        int item_idx = screen.state.menu_index + (i - 1);
+        if (total > 0) {
+            item_idx %= total;
+            if (item_idx < 0) {
+                item_idx += total;
+            }
+        }
+
+        lv_obj_clear_flag(menu.items[i].button, LV_OBJ_FLAG_HIDDEN);
+        screens::main_menu::layout::set_item(menu.items[i], screen.items[item_idx].left.c_str(),
+                                             screen.items[item_idx].icon);
+
+        float scale = (i == 1 || visible == 1) ? 1.0f : kSideScale;
+        lv_coord_t btn_w = menu.icon_size;
+        lv_coord_t btn_h = menu.item_height;
+
+        lv_coord_t slot_left = menu.row_left + i * slot_width;
+        lv_coord_t slot_center = slot_left + (menu.icon_size / 2);
+        lv_coord_t btn_left = slot_center - (btn_w / 2);
+        lv_coord_t btn_top = menu.icon_top;
+
+        lv_obj_set_size(menu.items[i].button, btn_w, btn_h);
+        lv_obj_align(menu.items[i].button, LV_ALIGN_TOP_LEFT, btn_left, btn_top);
+
+        if (menu.items[i].icon) {
+            lv_coord_t icon_w = static_cast<lv_coord_t>(menu.icon_size * scale);
+            if (icon_w < 1) {
+                icon_w = 1;
+            }
+            lv_coord_t icon_y = (menu.icon_size - icon_w) / 2 + kIconOffsetY;
+            lv_obj_set_size(menu.items[i].icon, icon_w, icon_w);
+            lv_obj_align(menu.items[i].icon, LV_ALIGN_TOP_MID, 0, icon_y);
+            const lv_image_dsc_t* icon = screen.items[item_idx].icon;
+            if (icon && icon->header.w > 0) {
+                uint32_t zoom =
+                    (static_cast<uint32_t>(icon_w) * 256U) / static_cast<uint32_t>(icon->header.w);
+                if (zoom == 0) {
+                    zoom = 256;
+                }
+                lv_img_set_zoom(menu.items[i].icon, zoom);
+            }
+            lv_obj_set_style_img_opa(menu.items[i].icon, (scale >= 0.99f) ? LV_OPA_COVER : LV_OPA_70, LV_PART_MAIN);
+        }
+        if (menu.items[i].label) {
+            lv_obj_set_width(menu.items[i].label, menu.icon_size + menu.icon_gap);
+            lv_coord_t label_y = menu.label_top - menu.icon_top;
+            lv_obj_align(menu.items[i].label, LV_ALIGN_TOP_MID, 0, label_y);
+            lv_obj_set_style_text_opa(menu.items[i].label, (scale >= 0.99f) ? LV_OPA_COVER : LV_OPA_70, LV_PART_MAIN);
+        }
+
+        RowMeta& meta = screen.rows[i];
+        meta.intent.kind = screen.items[item_idx].action;
+        meta.intent.next = screen.items[item_idx].next;
+        meta.intent.value = screen.items[item_idx].value;
+        meta.intent.value2 = screen.items[item_idx].value2;
+        meta.intent.item = &screen.items[item_idx];
+    }
+
+    int active_dot = (total > 0) ? (screen.state.menu_index % screens::main_menu::layout::kDots) : 0;
+    for (int i = 0; i < screens::main_menu::layout::kDots; ++i) {
+        if (!menu.dots[i]) {
+            continue;
+        }
+        lv_obj_clear_flag(menu.dots[i], LV_OBJ_FLAG_HIDDEN);
+        screens::main_menu::layout::set_dot_active(menu.dots[i], i == active_dot);
+    }
+
+    int focus_slot = (visible >= 2) ? 1 : 0;
+    if (focus_slot >= visible) {
+        focus_slot = 0;
+    }
+    if (menu.items[focus_slot].button && screen.group) {
+        lv_group_focus_obj(menu.items[focus_slot].button);
+    }
+
 }
 
 NavCommand handle_intent(UiScreen& screen, const UiIntent& intent)
@@ -699,6 +916,15 @@ void build_page(UiScreen& screen)
     shell_styles::init_once();
     screen.view.root = shell_layout::create_root();
 
+    lv_obj_t* active = lv_screen_active();
+    if (active) {
+        lv_obj_set_style_bg_color(active, lv_color_hex(0x0b0b0b), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(active, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(active, 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(active, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(active, 0, LV_PART_MAIN);
+    }
+
     shell_styles::apply_root(screen.view.root.root);
     shell_styles::apply_topbar(screen.view.root.topbar);
     shell_styles::apply_topbar_label(screen.view.root.top_left);
@@ -714,8 +940,14 @@ void build_page(UiScreen& screen)
 
     update_topbar(screen);
 
+    if (page_needs_library(screen.state.current)) {
+        ensure_library_scanned(screen);
+    }
+
     if (screen.state.current == PageId::NowPlaying) {
         screens::now_playing::build(screen);
+    } else if (screen.state.current == PageId::MainMenu) {
+        build_main_menu(screen);
     } else {
         build_list_page(screen);
     }

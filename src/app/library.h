@@ -49,10 +49,13 @@ struct Library
 
     String composers[kMaxComposers];
     int composer_count = 0;
+
+    bool scanned = false;
 };
 
 void library_reset(Library& lib);
-bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth);
+bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth, int max_files = kMaxTracks,
+                  bool read_tags = true, void (*tick)() = nullptr);
 
 int library_find_artist(const Library& lib, const String& name);
 int library_find_album(const Library& lib, const String& name, const String& artist);

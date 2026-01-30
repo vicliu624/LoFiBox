@@ -177,11 +177,23 @@ bool screen_alive(const UiScreen* screen)
 
 void init(app::Library* library, app::PlayerState* player)
 {
-    s_screen = {};
+    s_screen.alive = false;
+    s_screen.has_pending_intent = false;
+    s_screen.pending_intent = {};
+    s_screen.timers.clear_all();
+    s_screen.view = {};
+    s_screen.items_count = 0;
+    s_screen.row_count = 0;
+    s_screen.on_the_go_count = 0;
+    s_screen.playlist_count = 0;
+    if (s_screen.group) {
+        lv_group_del(s_screen.group);
+        s_screen.group = nullptr;
+    }
     s_screen.library = library;
     s_screen.player = player;
+    s_screen.state = {};
     s_screen.state.current = PageId::MainMenu;
-    s_screen.state.depth = 0;
     s_screen.state.song_context = SongContext::All;
     s_screen.state.album_filter = AlbumFilter::All;
     s_screen.state.current_playlist = -1;

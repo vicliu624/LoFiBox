@@ -22,14 +22,10 @@ void setup()
     beginLvglHelper();
     randomSeed(micros());
 
-    if (board.isSDReady()) {
-        app::library_scan(s_library, SD, "/music", 4);
-    } else {
-        app::library_reset(s_library);
-    }
-
+    app::library_reset(s_library);
     app::player_init(s_player, s_library);
     lofi::ui::init(&s_library, &s_player);
+
 }
 
 void loop()

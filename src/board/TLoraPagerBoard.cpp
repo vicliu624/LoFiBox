@@ -16,7 +16,6 @@ namespace
 {
 constexpr uint8_t kIoAddr = 0x20;
 constexpr uint8_t kEs8311Addr = 0x18;
-constexpr int kBacklightChannel = 1;
 
 #ifdef USING_INPUT_DEV_KEYBOARD
 static LilyGoKeyboard kb;
@@ -123,6 +122,46 @@ static bool map_char_to_lv_key(char c, uint32_t* key)
     }
     return false;
 }
+
+int8_t read_rotary_step()
+{
+    static uint8_t last_state = 0;
+    static int8_t accum = 0;
+    const uint8_t a = digitalRead(ROTARY_A) ? 1 : 0;
+    const uint8_t b = digitalRead(ROTARY_B) ? 1 : 0;
+    const uint8_t state = static_cast<uint8_t>((a << 1) | b);
+    static const int8_t table[16] = {
+        0, -1, 1, 0,
+        1, 0, 0, -1,
+        -1, 0, 0, 1,
+        0, 1, -1, 0
+    };
+    const uint8_t idx = static_cast<uint8_t>((last_state << 2) | state);
+    const int8_t delta = table[idx];
+    if (delta != 0) {
+        accum += delta;
+    }
+    last_state = state;
+
+    if (accum >= 2) {
+        accum = 0;
+        return 1;
+    }
+    if (accum <= -2) {
+        accum = 0;
+        return -1;
+    }
+    return 0;
+}
+
+bool read_rotary_press()
+{
+    static bool last_pressed = false;
+    bool pressed = (digitalRead(ROTARY_C) == LOW);
+    bool rising = pressed && !last_pressed;
+    last_pressed = pressed;
+    return rising;
+}
 } // namespace
 
 uint32_t TLoraPagerBoard::begin(uint32_t disable_hw_init)
@@ -130,6 +169,16 @@ uint32_t TLoraPagerBoard::begin(uint32_t disable_hw_init)
     (void)disable_hw_init;
 
     Wire.begin(SDA, SCL);
+
+    pinMode(LORA_CS, OUTPUT);
+    digitalWrite(LORA_CS, HIGH);
+    pinMode(NFC_CS, OUTPUT);
+    digitalWrite(NFC_CS, HIGH);
+    pinMode(SD_CS, OUTPUT);
+    digitalWrite(SD_CS, HIGH);
+    pinMode(ROTARY_A, INPUT_PULLUP);
+    pinMode(ROTARY_B, INPUT_PULLUP);
+    pinMode(ROTARY_C, INPUT_PULLUP);
 
     if (io_.begin(Wire, kIoAddr)) {
 #ifdef EXPANDS_GPIO_EN
@@ -148,14 +197,21 @@ uint32_t TLoraPagerBoard::begin(uint32_t disable_hw_init)
         io_.pinMode(EXPANDS_KB_EN, OUTPUT);
         io_.digitalWrite(EXPANDS_KB_EN, HIGH);
 #endif
+#ifdef EXPANDS_KB_RST
+        io_.pinMode(EXPANDS_KB_RST, OUTPUT);
+        io_.digitalWrite(EXPANDS_KB_RST, LOW);
+        delay(10);
+        io_.digitalWrite(EXPANDS_KB_RST, HIGH);
+        delay(10);
+#endif
     }
 
-    display_ready_ = display_.init(DISP_SCK, DISP_MISO, DISP_MOSI, DISP_CS, DISP_RST, DISP_DC, DISP_BL, 80);
+    backlight_.begin(DISP_BL);
+
+    display_ready_ = display_.init(DISP_SCK, DISP_MISO, DISP_MOSI, DISP_CS, DISP_RST, DISP_DC, -1, 80);
     if (display_ready_) {
-        display_.setRotation(1);
-        ledcSetup(kBacklightChannel, 5000, 8);
-        ledcAttachPin(DISP_BL, kBacklightChannel);
-        ledcWrite(kBacklightChannel, brightness_);
+        display_.setRotation(0);
+        backlight_.setBrightness(brightness_);
     }
 
 #ifdef USING_INPUT_DEV_KEYBOARD
@@ -178,14 +234,12 @@ void TLoraPagerBoard::softwareShutdown() {}
 void TLoraPagerBoard::setBrightness(uint8_t level)
 {
     brightness_ = level;
-    if (display_ready_) {
-        ledcWrite(kBacklightChannel, level);
-    }
+    backlight_.setBrightness(level);
 }
 
 uint8_t TLoraPagerBoard::getBrightness() const
 {
-    return brightness_;
+    return backlight_.getBrightness();
 }
 
 bool TLoraPagerBoard::hasKeyboard() const
@@ -230,6 +284,19 @@ int TLoraPagerBoard::getBatteryLevel() const
 
 bool TLoraPagerBoard::readKey(uint32_t* key)
 {
+    if (read_rotary_press()) {
+        if (key) {
+            *key = LV_KEY_ENTER;
+        }
+        return true;
+    }
+    int8_t step = read_rotary_step();
+    if (step != 0) {
+        if (key) {
+            *key = (step > 0) ? LV_KEY_UP : LV_KEY_DOWN;
+        }
+        return true;
+    }
 #ifdef USING_INPUT_DEV_KEYBOARD
     if (!keyboard_ready_) {
         return false;

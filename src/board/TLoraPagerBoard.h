@@ -3,6 +3,7 @@
 #include "BoardBase.h"
 #include "display/DisplayInterface.h"
 #include "display/drivers/ST7796.h"
+#include <AW9364LedDriver.hpp>
 #include <ExtensionIOXL9555.hpp>
 #include "pins_arduino.h"
 
@@ -32,7 +33,7 @@ class TLoraPagerBoard : public BoardBase
     bool initAudio(uint8_t& bclk, uint8_t& lrck, uint8_t& dout, int8_t& mclk) override;
 
   private:
-    uint8_t brightness_ = DEVICE_MAX_BRIGHTNESS_LEVEL;
+    uint8_t brightness_ = 16;
     uint8_t keyboard_brightness_ = 0;
     bool keyboard_ready_ = false;
     bool sd_ready_ = false;
@@ -43,6 +44,7 @@ class TLoraPagerBoard : public BoardBase
         display::drivers::ST7796::getInitCommands(),
         display::drivers::ST7796::getInitCommandsCount(),
         display::drivers::ST7796::getRotationConfig(DISP_WIDTH, DISP_HEIGHT, 49, 49));
+    AW9364LedDriver backlight_;
     ExtensionIOXL9555 io_;
     bool display_ready_ = false;
 };
