@@ -27,13 +27,22 @@ void init_once()
 
     lv_style_init(&s_content);
     lv_style_set_bg_color(&s_content, lv_color_hex(0x101010));
-    lv_style_set_bg_grad_color(&s_content, lv_color_hex(0x050505));
-    lv_style_set_bg_grad_dir(&s_content, LV_GRAD_DIR_VER);
+    lv_style_set_bg_grad_color(&s_content, lv_color_hex(0x101010));
+    lv_style_set_bg_grad_dir(&s_content, LV_GRAD_DIR_NONE);
+    lv_style_set_bg_opa(&s_content, LV_OPA_COVER);
+    lv_style_set_border_width(&s_content, 0);
+    lv_style_set_border_opa(&s_content, LV_OPA_0);
+    lv_style_set_outline_width(&s_content, 0);
+    lv_style_set_outline_opa(&s_content, LV_OPA_0);
     lv_style_set_pad_all(&s_content, 0);
 
     lv_style_init(&s_list);
-    lv_style_set_bg_opa(&s_list, LV_OPA_0);
+    lv_style_set_bg_color(&s_list, lv_color_hex(0x101010));
+    lv_style_set_bg_opa(&s_list, LV_OPA_COVER);
     lv_style_set_border_width(&s_list, 0);
+    lv_style_set_border_opa(&s_list, LV_OPA_0);
+    lv_style_set_outline_width(&s_list, 0);
+    lv_style_set_outline_opa(&s_list, LV_OPA_0);
     lv_style_set_pad_left(&s_list, (w >= 360) ? 12 : 8);
     lv_style_set_pad_right(&s_list, (w >= 360) ? 10 : 6);
     lv_style_set_pad_top(&s_list, 4);
@@ -44,16 +53,17 @@ void init_once()
     lv_style_set_border_width(&s_row, 0);
     lv_style_set_shadow_width(&s_row, 0);
     lv_style_set_outline_width(&s_row, 0);
-    lv_style_set_bg_opa(&s_row, LV_OPA_0);
+    lv_style_set_bg_color(&s_row, lv_color_hex(0x101010));
+    lv_style_set_bg_grad_dir(&s_row, LV_GRAD_DIR_NONE);
+    lv_style_set_bg_opa(&s_row, LV_OPA_COVER);
     lv_style_set_pad_all(&s_row, 0);
 
     lv_style_init(&s_row_checked);
-    lv_style_set_bg_color(&s_row_checked, lv_color_hex(0x1d5fa8));
-    lv_style_set_bg_grad_color(&s_row_checked, lv_color_hex(0x63b3ff));
-    lv_style_set_bg_grad_dir(&s_row_checked, LV_GRAD_DIR_VER);
+    lv_style_set_bg_color(&s_row_checked, lv_color_hex(0x101010));
+    lv_style_set_bg_grad_dir(&s_row_checked, LV_GRAD_DIR_NONE);
     lv_style_set_bg_opa(&s_row_checked, LV_OPA_COVER);
-    lv_style_set_border_width(&s_row_checked, 1);
-    lv_style_set_border_color(&s_row_checked, lv_color_hex(0x0e2f5a));
+    lv_style_set_border_width(&s_row_checked, 0);
+    lv_style_set_border_opa(&s_row_checked, LV_OPA_0);
 
     lv_style_init(&s_label_left);
     lv_style_set_text_font(&s_label_left, font_main);

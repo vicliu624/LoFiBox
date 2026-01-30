@@ -31,6 +31,11 @@ void init_once()
     lv_style_set_bg_color(&s_content, lv_color_hex(0x0e0e0e));
     lv_style_set_bg_grad_color(&s_content, lv_color_hex(0x060606));
     lv_style_set_bg_grad_dir(&s_content, LV_GRAD_DIR_VER);
+    lv_style_set_bg_opa(&s_content, LV_OPA_COVER);
+    lv_style_set_border_width(&s_content, 0);
+    lv_style_set_border_opa(&s_content, LV_OPA_0);
+    lv_style_set_outline_width(&s_content, 0);
+    lv_style_set_outline_opa(&s_content, LV_OPA_0);
     lv_style_set_pad_all(&s_content, 0);
 
     lv_style_init(&s_cover);
