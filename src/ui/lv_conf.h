@@ -97,7 +97,8 @@
 
 #define LV_USE_BMP 1
 #define LV_USE_GIF 0
-#define LV_USE_LODEPNG 1
+#define LV_USE_LODEPNG 0
+#define LV_USE_LIBPNG 0
 #define LV_USE_TJPGD 1
 
 #endif

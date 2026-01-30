@@ -32,6 +32,7 @@ void loop()
 {
     app::player_loop(s_player);
     lofi::ui::tick();
+    lvHelperTick();
     lv_timer_handler();
     delay(2);
 }

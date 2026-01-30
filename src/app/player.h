@@ -14,6 +14,14 @@ enum class PlaybackMode
     RepeatOne,
 };
 
+enum class CoverFormat : uint8_t
+{
+    Unknown = 0,
+    Jpeg,
+    Png,
+    Bmp,
+};
+
 struct PlayerState
 {
     int current_index = -1;
@@ -25,6 +33,10 @@ struct PlayerState
     bool cover_ready = false;
     uint32_t cover_version = 0;
     uint32_t meta_version = 0;
+    int cover_track_index = -1;
+    uint32_t cover_pos = 0;
+    uint32_t cover_len = 0;
+    CoverFormat cover_format = CoverFormat::Unknown;
 };
 
 void player_init(PlayerState& state, Library& lib);

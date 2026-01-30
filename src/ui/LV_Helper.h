@@ -3,3 +3,4 @@
 #include <lvgl.h>
 
 void beginLvglHelper();
+void lvHelperTick();

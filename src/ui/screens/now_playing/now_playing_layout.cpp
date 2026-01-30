@@ -96,7 +96,7 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
         controls_h = 18;
     }
 
-    refs.cover = lv_img_create(content);
+    refs.cover = lv_canvas_create(content);
     lv_obj_set_pos(refs.cover, cover_x, cover_y);
     lv_obj_set_size(refs.cover, cover_size, cover_size);
 

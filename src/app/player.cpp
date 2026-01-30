@@ -14,34 +14,9 @@ static Audio s_audio;
 static Library* s_library = nullptr;
 static PlayerState* s_state = nullptr;
 
-enum class CoverFormat
-{
-    Unknown = 0,
-    Jpeg,
-    Png,
-    Bmp,
-};
-
 constexpr size_t kCoverScanMax = 4096;
 constexpr size_t kCoverChunkSize = 512;
 constexpr size_t kCoverMaxBytes = 256 * 1024;
-constexpr const char* kCoverDir = "/lofibox";
-constexpr const char* kCoverBase = "/lofibox/cover";
-constexpr const char* kCoverBaseLvgl = "S:/lofibox/cover";
-
-static const char* cover_ext(CoverFormat fmt)
-{
-    switch (fmt) {
-    case CoverFormat::Jpeg:
-        return ".jpg";
-    case CoverFormat::Png:
-        return ".png";
-    case CoverFormat::Bmp:
-        return ".bmp";
-    default:
-        return "";
-    }
-}
 
 static bool match_sig(const uint8_t* buf, size_t len, const uint8_t* sig, size_t siglen)
 {
@@ -109,6 +84,10 @@ static void reset_cover(PlayerState& state)
 {
     state.cover_ready = false;
     state.cover_path = "";
+    state.cover_track_index = -1;
+    state.cover_pos = 0;
+    state.cover_len = 0;
+    state.cover_format = CoverFormat::Unknown;
     state.cover_version++;
 }
 
@@ -258,36 +237,11 @@ static void handle_id3_image(File& file, size_t pos, size_t size)
         return;
     }
 
-    if (!SD.exists(kCoverDir)) {
-        SD.mkdir(kCoverDir);
-    }
-
-    String sd_path = String(kCoverBase) + cover_ext(fmt);
-    String lvgl_path = String(kCoverBaseLvgl) + cover_ext(fmt);
-
-    SD.remove(sd_path.c_str());
-    File out = SD.open(sd_path.c_str(), FILE_WRITE);
-    if (!out) {
-        file.seek(saved_pos);
-        return;
-    }
-
-    file.seek(image_pos);
-    size_t remaining = image_len;
-    uint8_t buf[kCoverChunkSize];
-    while (remaining > 0) {
-        size_t chunk = remaining > sizeof(buf) ? sizeof(buf) : remaining;
-        size_t rd = file.read(buf, chunk);
-        if (rd == 0) {
-            break;
-        }
-        out.write(buf, rd);
-        remaining -= rd;
-    }
-    out.close();
-
-    s_state->cover_path = lvgl_path;
     s_state->cover_ready = true;
+    s_state->cover_format = fmt;
+    s_state->cover_pos = static_cast<uint32_t>(image_pos);
+    s_state->cover_len = static_cast<uint32_t>(image_len);
+    s_state->cover_track_index = s_state->current_index;
     s_state->cover_version++;
 
     file.seek(saved_pos);
@@ -301,6 +255,10 @@ void player_init(PlayerState& state, Library& lib)
     state.cover_path = "";
     state.cover_version = 0;
     state.meta_version = 0;
+    state.cover_track_index = -1;
+    state.cover_pos = 0;
+    state.cover_len = 0;
+    state.cover_format = CoverFormat::Unknown;
 
     uint8_t bclk = 0;
     uint8_t lrck = 0;

@@ -7,6 +7,8 @@ namespace lofi::ui::screens::now_playing::layout
 struct NowPlayingLayout
 {
     lv_obj_t* cover = nullptr;
+    uint16_t* cover_buf = nullptr;
+    size_t cover_buf_size = 0;
     lv_obj_t* title = nullptr;
     lv_obj_t* artist = nullptr;
     lv_obj_t* album = nullptr;

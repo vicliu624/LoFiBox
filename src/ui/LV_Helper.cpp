@@ -22,6 +22,33 @@ static lv_indev_t* s_indev_keyboard = nullptr;
 static bool s_key_pending = false;
 static uint32_t s_last_key = 0;
 static lv_fs_drv_t s_sd_drv;
+static uint32_t s_last_input_ms = 0;
+static bool s_display_sleep = false;
+static uint8_t s_saved_brightness = 0;
+static uint8_t s_saved_kb_brightness = 0;
+
+constexpr uint32_t kIdleTimeoutMs = 30000;
+
+static void wake_display()
+{
+    if (!s_display_sleep) {
+        return;
+    }
+    s_display_sleep = false;
+    if (s_saved_brightness == 0) {
+        s_saved_brightness = 1;
+    }
+    board.setBrightness(s_saved_brightness);
+    if (board.hasKeyboard()) {
+        board.keyboardSetBrightness(s_saved_kb_brightness);
+    }
+}
+
+static void note_input_activity()
+{
+    s_last_input_ms = millis();
+    wake_display();
+}
 
 static void disp_flush(lv_display_t* disp_drv, const lv_area_t* area, uint8_t* color_p)
 {
@@ -54,6 +81,12 @@ static void keypad_read(lv_indev_t* drv, lv_indev_data_t* data)
 
     uint32_t key = 0;
     if (board.readKey(&key)) {
+        bool was_sleep = s_display_sleep;
+        note_input_activity();
+        if (was_sleep) {
+            data->state = LV_INDEV_STATE_RELEASED;
+            return;
+        }
         data->key = key;
         data->state = LV_INDEV_STATE_PRESSED;
         s_last_key = key;
@@ -193,5 +226,27 @@ void beginLvglHelper()
         lv_indev_set_read_cb(s_indev_keyboard, keypad_read);
         lv_indev_set_display(s_indev_keyboard, s_display);
         lv_indev_set_group(s_indev_keyboard, lv_group_get_default());
+    }
+
+    s_last_input_ms = millis();
+    s_saved_brightness = board.getBrightness();
+    if (board.hasKeyboard()) {
+        s_saved_kb_brightness = board.keyboardGetBrightness();
+    }
+}
+
+void lvHelperTick()
+{
+    uint32_t now = millis();
+    if (!s_display_sleep && static_cast<uint32_t>(now - s_last_input_ms) >= kIdleTimeoutMs) {
+        s_saved_brightness = board.getBrightness();
+        if (board.hasKeyboard()) {
+            s_saved_kb_brightness = board.keyboardGetBrightness();
+        }
+        board.setBrightness(0);
+        if (board.hasKeyboard()) {
+            board.keyboardSetBrightness(0);
+        }
+        s_display_sleep = true;
     }
 }
