@@ -509,7 +509,7 @@ void build(UiScreen& screen)
         const lv_font_t* font = lv_obj_get_style_text_font(screen.view.now.title, LV_PART_MAIN);
         if (font) {
             lv_coord_t char_w = lv_font_get_glyph_width(font, 'W', 0);
-            lv_coord_t max_w = char_w * 18;
+            lv_coord_t max_w = char_w * 30;
             if (max_w > 0) {
                 lv_obj_set_width(screen.view.now.title, max_w);
             }

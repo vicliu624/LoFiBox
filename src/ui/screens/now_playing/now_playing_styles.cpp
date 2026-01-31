@@ -48,11 +48,11 @@ void init_once()
 
     lv_style_init(&s_title);
     lv_style_set_text_font(&s_title, &lv_font_source_han_sans_sc_16_cjk);
-    lv_style_set_text_color(&s_title, lv_color_hex(0xf5f5f5));
+    lv_style_set_text_color(&s_title, lv_color_hex(0xf8f8f8));
 
     lv_style_init(&s_subtitle);
-    lv_style_set_text_font(&s_subtitle, &lv_font_source_han_sans_sc_14_cjk);
-    lv_style_set_text_color(&s_subtitle, lv_color_hex(0xbdbdbd));
+    lv_style_set_text_font(&s_subtitle, &lv_font_source_han_sans_sc_16_cjk);
+    lv_style_set_text_color(&s_subtitle, lv_color_hex(0xc7c7c7));
 
     lv_style_init(&s_time_label);
     lv_style_set_text_font(&s_time_label, &lv_font_montserrat_14);
@@ -65,7 +65,8 @@ void init_once()
     lv_style_init(&s_bar);
     lv_style_set_radius(&s_bar, 0);
     lv_style_set_bg_color(&s_bar, lv_color_hex(0x3a3a3a));
-    lv_style_set_border_width(&s_bar, 0);
+    lv_style_set_border_width(&s_bar, 1);
+    lv_style_set_border_color(&s_bar, lv_color_hex(0xf2f2f2));
 
     lv_style_init(&s_bar_indic);
     lv_style_set_bg_color(&s_bar_indic, lv_color_hex(0x5fb0ff));

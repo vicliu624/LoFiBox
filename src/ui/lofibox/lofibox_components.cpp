@@ -105,6 +105,34 @@ String single_line_text(const String& input)
     return out;
 }
 
+String truncate_utf8(const String& input, size_t max_chars)
+{
+    if (max_chars == 0) {
+        return "";
+    }
+    const char* text = input.c_str();
+    size_t total_chars = lv_text_get_encoded_length(text);
+    if (total_chars <= max_chars) {
+        return input;
+    }
+    size_t keep = max_chars;
+    if (max_chars > 3) {
+        keep = max_chars - 3;
+    }
+    uint32_t i = 0;
+    size_t count = 0;
+    while (text[i] && count < keep) {
+        lv_text_encoded_next(text, &i);
+        ++count;
+    }
+    size_t bytes = static_cast<size_t>(i);
+    String out = input.substring(0, bytes);
+    if (max_chars > 3) {
+        out += "...";
+    }
+    return out;
+}
+
 void ensure_library_scanned(UiScreen& screen)
 {
     if (!screen.library || screen.library->scanned) {
@@ -691,22 +719,13 @@ void update_topbar(UiScreen& screen)
         String safe_title = single_line_text(track.title.length() ? track.title : String("Now Playing"));
         String safe_album = single_line_text(track.album);
         String safe_genre = single_line_text(track.genre);
-        lv_label_set_long_mode(screen.view.root.top_left, LV_LABEL_LONG_DOT);
-        lv_label_set_long_mode(screen.view.root.top_title, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(screen.view.root.top_left, LV_LABEL_LONG_CLIP);
+        lv_label_set_long_mode(screen.view.root.top_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_style_text_align(screen.view.root.top_left, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
         lv_obj_set_style_text_align(screen.view.root.top_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_set_style_text_line_space(screen.view.root.top_left, 0, LV_PART_MAIN);
+        lv_obj_set_style_text_line_space(screen.view.root.top_title, 0, LV_PART_MAIN);
 
-        String center;
-        if (safe_album.length() > 0 && safe_genre.length() > 0) {
-            center = safe_album + " / " + safe_genre;
-        } else if (safe_album.length() > 0) {
-            center = safe_album;
-        } else if (safe_genre.length() > 0) {
-            center = safe_genre;
-        } else {
-            center = "";
-        }
-        lv_label_set_text(screen.view.root.top_title, center.c_str());
         lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
         if (w <= 0) {
             w = 480;
@@ -736,8 +755,20 @@ void update_topbar(UiScreen& screen)
         lv_obj_set_height(screen.view.root.top_left, LV_SIZE_CONTENT);
         lv_obj_set_height(screen.view.root.top_title, LV_SIZE_CONTENT);
 
-        String left = String(LV_SYMBOL_LEFT) + " " + safe_title;
+        String left = String(LV_SYMBOL_LEFT) + " " + truncate_utf8(safe_title, 10);
         lv_label_set_text(screen.view.root.top_left, left.c_str());
+
+        String center;
+        if (safe_album.length() > 0 && safe_genre.length() > 0) {
+            center = safe_album + " / " + safe_genre;
+        } else if (safe_album.length() > 0) {
+            center = safe_album;
+        } else if (safe_genre.length() > 0) {
+            center = safe_genre;
+        } else {
+            center = "";
+        }
+        lv_label_set_text(screen.view.root.top_title, center.c_str());
 
         lv_obj_set_style_text_color(screen.view.root.top_left, lv_color_hex(0xf2f2f2), LV_PART_MAIN);
         lv_obj_set_style_text_color(screen.view.root.top_title, lv_color_hex(0x8f949a), LV_PART_MAIN);
