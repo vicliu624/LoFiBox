@@ -93,6 +93,18 @@ void scan_tick()
     yield();
 }
 
+String single_line_text(const String& input)
+{
+    String out = input;
+    for (size_t i = 0; i < out.length(); ++i) {
+        char c = out[i];
+        if (c == '\n' || c == '\r' || c == '\t') {
+            out.setCharAt(i, ' ');
+        }
+    }
+    return out;
+}
+
 void ensure_library_scanned(UiScreen& screen)
 {
     if (!screen.library || screen.library->scanned) {
@@ -676,25 +688,25 @@ void update_topbar(UiScreen& screen)
     if (screen.state.current == PageId::NowPlaying && screen.player && screen.library &&
         screen.player->current_index >= 0 && screen.player->current_index < screen.library->track_count) {
         const app::TrackInfo& track = screen.library->tracks[screen.player->current_index];
-        String left = String(LV_SYMBOL_LEFT) + " " + (track.title.length() ? track.title : String("Now Playing"));
-        lv_label_set_text(screen.view.root.top_left, left.c_str());
-
-        String center;
-        if (track.album.length() > 0 && track.genre.length() > 0) {
-            center = track.album + " / " + track.genre;
-        } else if (track.album.length() > 0) {
-            center = track.album;
-        } else if (track.genre.length() > 0) {
-            center = track.genre;
-        } else {
-            center = "";
-        }
-        lv_label_set_text(screen.view.root.top_title, center.c_str());
-
+        String safe_title = single_line_text(track.title.length() ? track.title : String("Now Playing"));
+        String safe_album = single_line_text(track.album);
+        String safe_genre = single_line_text(track.genre);
         lv_label_set_long_mode(screen.view.root.top_left, LV_LABEL_LONG_DOT);
         lv_label_set_long_mode(screen.view.root.top_title, LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_align(screen.view.root.top_left, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
         lv_obj_set_style_text_align(screen.view.root.top_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+
+        String center;
+        if (safe_album.length() > 0 && safe_genre.length() > 0) {
+            center = safe_album + " / " + safe_genre;
+        } else if (safe_album.length() > 0) {
+            center = safe_album;
+        } else if (safe_genre.length() > 0) {
+            center = safe_genre;
+        } else {
+            center = "";
+        }
+        lv_label_set_text(screen.view.root.top_title, center.c_str());
         lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
         if (w <= 0) {
             w = 480;
@@ -703,24 +715,29 @@ void update_topbar(UiScreen& screen)
         if (font_left) {
             lv_coord_t char_w = lv_font_get_glyph_width(font_left, 'W', 0);
             if (char_w > 0) {
-                lv_obj_set_size(screen.view.root.top_left, char_w * 7, LV_SIZE_CONTENT);
+                lv_obj_set_width(screen.view.root.top_left, char_w * 7);
             } else {
-                lv_obj_set_size(screen.view.root.top_left, (w * 25) / 100, LV_SIZE_CONTENT);
+                lv_obj_set_width(screen.view.root.top_left, (w * 25) / 100);
             }
         } else {
-            lv_obj_set_size(screen.view.root.top_left, (w * 25) / 100, LV_SIZE_CONTENT);
+            lv_obj_set_width(screen.view.root.top_left, (w * 25) / 100);
         }
         const lv_font_t* font_title = lv_obj_get_style_text_font(screen.view.root.top_title, LV_PART_MAIN);
         if (font_title) {
             lv_coord_t char_w = lv_font_get_glyph_width(font_title, 'W', 0);
             if (char_w > 0) {
-                lv_obj_set_size(screen.view.root.top_title, char_w * 18, LV_SIZE_CONTENT);
+                lv_obj_set_width(screen.view.root.top_title, char_w * 18);
             } else {
-                lv_obj_set_size(screen.view.root.top_title, (w * 45) / 100, LV_SIZE_CONTENT);
+                lv_obj_set_width(screen.view.root.top_title, (w * 45) / 100);
             }
         } else {
-            lv_obj_set_size(screen.view.root.top_title, (w * 45) / 100, LV_SIZE_CONTENT);
+            lv_obj_set_width(screen.view.root.top_title, (w * 45) / 100);
         }
+        lv_obj_set_height(screen.view.root.top_left, LV_SIZE_CONTENT);
+        lv_obj_set_height(screen.view.root.top_title, LV_SIZE_CONTENT);
+
+        String left = String(LV_SYMBOL_LEFT) + " " + safe_title;
+        lv_label_set_text(screen.view.root.top_left, left.c_str());
 
         lv_obj_set_style_text_color(screen.view.root.top_left, lv_color_hex(0xf2f2f2), LV_PART_MAIN);
         lv_obj_set_style_text_color(screen.view.root.top_title, lv_color_hex(0x8f949a), LV_PART_MAIN);

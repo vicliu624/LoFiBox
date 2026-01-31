@@ -58,40 +58,46 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
         offset_y = (content_h - design_h) / 2;
     }
 
-    lv_coord_t pad_right = scale(14);
-    lv_coord_t cover_x = scale(12);
-    lv_coord_t cover_y = offset_y + scale(10);
-    lv_coord_t cover_size = scale(120);
+    lv_coord_t cover_x = scale(36);
+    lv_coord_t cover_y = offset_y + scale(42);
+    lv_coord_t cover_size = scale(131);
     if (cover_size < 24) {
         cover_size = 24;
     }
     refs.cover_size = cover_size;
 
-    lv_coord_t meta_x = cover_x + cover_size + scale(14);
-    lv_coord_t meta_w = content_w - meta_x - pad_right;
-    lv_coord_t title_y = offset_y + scale(12);
-    lv_coord_t artist_y = offset_y + scale(40);
-    lv_coord_t album_y = offset_y + scale(62);
-    lv_coord_t time_y = offset_y + scale(90);
-    lv_coord_t bar_y = offset_y + scale(108);
-    lv_coord_t controls_y = offset_y + scale(144);
+    lv_coord_t panel_x = scale(26);
+    lv_coord_t panel_y = offset_y + scale(34);
+    lv_coord_t panel_w = scale(430);
+    lv_coord_t panel_h = scale(158);
+    (void)panel_y;
+    (void)panel_h;
+    lv_coord_t meta_x = scale(181);
+    lv_coord_t pad_right = scale(16);
+    lv_coord_t meta_w = (panel_x + panel_w) - meta_x - pad_right;
+    lv_coord_t title_y = offset_y + scale(53);
+    lv_coord_t artist_y = offset_y + scale(78);
+    lv_coord_t album_y = offset_y + scale(96);
+    lv_coord_t bar_shift = 8;
+    lv_coord_t bar_y = offset_y + scale(110) + bar_shift;
+    lv_coord_t time_bottom_y = offset_y + scale(124) + bar_shift;
+    lv_coord_t controls_y = offset_y + scale(155) + bar_shift;
 
-    lv_coord_t time_width = scale(36);
-    lv_coord_t time_gap = scale(6);
-    lv_coord_t bar_x = meta_x + time_width + time_gap;
-    lv_coord_t bar_right = content_w - pad_right - time_width - time_gap;
-    lv_coord_t bar_width = bar_right - bar_x;
-    if (bar_width < scale(80)) {
-        bar_width = scale(80);
-    }
+    lv_coord_t bar_x = meta_x;
+    lv_coord_t bar_width = scale(150);
     refs.bar_width = bar_width;
+    lv_coord_t time_width = scale(36);
+    if (time_width < 24) {
+        time_width = 24;
+    }
 
     lv_coord_t bar_height = scale(6);
     if (bar_height < 4) {
         bar_height = 4;
     }
-    lv_coord_t bar_wrap_height = bar_height + 2;
-    lv_coord_t controls_h = scale(26);
+    lv_coord_t knob_h = bar_height + scale(7);
+    lv_coord_t bar_wrap_height = knob_h;
+    lv_coord_t controls_h = scale(24);
     if (controls_h < 18) {
         controls_h = 18;
     }
@@ -116,10 +122,12 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
     lv_obj_set_width(refs.album, meta_w);
 
     refs.time_left = lv_label_create(content);
-    lv_obj_set_pos(refs.time_left, meta_x, time_y);
+    lv_obj_set_pos(refs.time_left, meta_x, time_bottom_y);
 
     refs.time_right = lv_label_create(content);
-    lv_obj_align(refs.time_right, LV_ALIGN_TOP_RIGHT, -pad_right, time_y);
+    lv_obj_set_pos(refs.time_right, panel_x + panel_w - pad_right - time_width, time_bottom_y);
+    lv_obj_set_width(refs.time_right, time_width);
+    lv_obj_set_style_text_align(refs.time_right, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
 
     refs.bar_wrap = lv_obj_create(content);
     lv_obj_set_size(refs.bar_wrap, bar_width, bar_wrap_height);
@@ -130,8 +138,12 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
     lv_obj_set_size(refs.bar, bar_width, bar_height);
     lv_obj_align(refs.bar, LV_ALIGN_CENTER, 0, 0);
 
+    lv_coord_t knob_w = scale(3);
+    if (knob_w < 2) {
+        knob_w = 2;
+    }
     refs.knob = lv_obj_create(refs.bar_wrap);
-    lv_obj_set_size(refs.knob, scale(6), bar_height + 2);
+    lv_obj_set_size(refs.knob, knob_w, knob_h);
     lv_obj_align(refs.knob, LV_ALIGN_LEFT_MID, 0, 0);
 
     refs.controls_row = lv_obj_create(content);

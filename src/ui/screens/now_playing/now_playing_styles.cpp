@@ -28,20 +28,23 @@ void init_once()
     s_inited = true;
 
     lv_style_init(&s_content);
-    lv_style_set_bg_color(&s_content, lv_color_hex(0x0e0e0e));
-    lv_style_set_bg_grad_color(&s_content, lv_color_hex(0x060606));
+    lv_style_set_bg_color(&s_content, lv_color_hex(0x1d1f22));
+    lv_style_set_bg_grad_color(&s_content, lv_color_hex(0x0f1012));
     lv_style_set_bg_grad_dir(&s_content, LV_GRAD_DIR_VER);
     lv_style_set_bg_opa(&s_content, LV_OPA_COVER);
     lv_style_set_border_width(&s_content, 0);
     lv_style_set_border_opa(&s_content, LV_OPA_0);
     lv_style_set_outline_width(&s_content, 0);
     lv_style_set_outline_opa(&s_content, LV_OPA_0);
+    lv_style_set_shadow_width(&s_content, 0);
+    lv_style_set_shadow_opa(&s_content, LV_OPA_0);
+    lv_style_set_radius(&s_content, 0);
     lv_style_set_pad_all(&s_content, 0);
 
     lv_style_init(&s_cover);
-    lv_style_set_bg_color(&s_cover, lv_color_hex(0x111111));
+    lv_style_set_bg_color(&s_cover, lv_color_hex(0x0a0b0e));
     lv_style_set_border_width(&s_cover, 1);
-    lv_style_set_border_color(&s_cover, lv_color_hex(0x3a3a3a));
+    lv_style_set_border_color(&s_cover, lv_color_hex(0x6c6f76));
 
     lv_style_init(&s_title);
     lv_style_set_text_font(&s_title, &lv_font_source_han_sans_sc_16_cjk);
@@ -52,7 +55,7 @@ void init_once()
     lv_style_set_text_color(&s_subtitle, lv_color_hex(0xbdbdbd));
 
     lv_style_init(&s_time_label);
-    lv_style_set_text_font(&s_time_label, &lv_font_montserrat_12);
+    lv_style_set_text_font(&s_time_label, &lv_font_montserrat_14);
     lv_style_set_text_color(&s_time_label, lv_color_hex(0xbdbdbd));
 
     lv_style_init(&s_bar_wrap);

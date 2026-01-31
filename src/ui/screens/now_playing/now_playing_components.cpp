@@ -251,7 +251,7 @@ bool decode_cover_bmp(layout::NowPlayingLayout& view, File& file, size_t pos, si
     }
 
     CoverScale scale = compute_cover_scale(width, height, view.cover_size);
-    uint16_t bg = rgb565_from_rgb(0x11, 0x11, 0x11);
+    uint16_t bg = rgb565_from_rgb(0x0a, 0x0b, 0x0e);
 
     uint8_t* row = static_cast<uint8_t*>(lv_malloc(row_size));
     if (!row) {
@@ -359,7 +359,7 @@ bool decode_cover_png(layout::NowPlayingLayout& view, File& file, size_t pos, si
     }
     PngleCtx ctx{};
     ctx.view = &view;
-    ctx.bg = rgb565_from_rgb(0x11, 0x11, 0x11);
+    ctx.bg = rgb565_from_rgb(0x0a, 0x0b, 0x0e);
     s_pngle_ctx = &ctx;
     pngle_set_draw_callback(png, pngle_draw);
 
@@ -422,7 +422,7 @@ void update_cover(UiScreen& screen)
         return;
     }
 
-    uint16_t bg = rgb565_from_rgb(0x11, 0x11, 0x11);
+    uint16_t bg = rgb565_from_rgb(0x0a, 0x0b, 0x0e);
     if (!screen.player->cover_ready ||
         (screen.player->cover_format != app::CoverFormat::Jpeg &&
          screen.player->cover_format != app::CoverFormat::Png &&
@@ -510,11 +510,11 @@ void build(UiScreen& screen)
         if (font) {
             lv_coord_t char_w = lv_font_get_glyph_width(font, 'W', 0);
             lv_coord_t max_w = char_w * 18;
-            lv_coord_t current_w = lv_obj_get_width(screen.view.now.title);
-            if (current_w == 0 || current_w > max_w) {
+            if (max_w > 0) {
                 lv_obj_set_width(screen.view.now.title, max_w);
             }
         }
+        lv_obj_set_height(screen.view.now.title, LV_SIZE_CONTENT);
     }
     lv_label_set_text(screen.view.now.artist, "");
     lv_label_set_text(screen.view.now.album, "");
@@ -536,7 +536,7 @@ void build(UiScreen& screen)
         if (screen.view.now.cover_buf) {
             lv_canvas_set_buffer(screen.view.now.cover, screen.view.now.cover_buf, screen.view.now.cover_size,
                                  screen.view.now.cover_size, LV_COLOR_FORMAT_RGB565);
-            clear_cover_buffer(screen.view.now, rgb565_from_rgb(0x11, 0x11, 0x11));
+            clear_cover_buffer(screen.view.now, rgb565_from_rgb(0x0a, 0x0b, 0x0e));
         }
     }
 
@@ -564,9 +564,18 @@ void update(UiScreen& screen)
         screen.state.last_track_index = idx;
         if (has_track) {
             const app::TrackInfo& track = screen.library->tracks[idx];
-            lv_label_set_text(screen.view.now.title, track.title.length() ? track.title.c_str() : "Unknown Title");
-            lv_label_set_text(screen.view.now.artist, track.artist.length() ? track.artist.c_str() : "Unknown Artist");
-            lv_label_set_text(screen.view.now.album, track.album.length() ? track.album.c_str() : "Unknown Album");
+            String safe_title = track.title.length() ? track.title : String("Unknown Title");
+            String safe_artist = track.artist.length() ? track.artist : String("Unknown Artist");
+            String safe_album = track.album.length() ? track.album : String("Unknown Album");
+            safe_title.replace('\n', ' ');
+            safe_title.replace('\r', ' ');
+            safe_artist.replace('\n', ' ');
+            safe_artist.replace('\r', ' ');
+            safe_album.replace('\n', ' ');
+            safe_album.replace('\r', ' ');
+            lv_label_set_text(screen.view.now.title, safe_title.c_str());
+            lv_label_set_text(screen.view.now.artist, safe_artist.c_str());
+            lv_label_set_text(screen.view.now.album, safe_album.c_str());
         } else {
             lv_label_set_text(screen.view.now.title, "No Track");
             lv_label_set_text(screen.view.now.artist, "");
