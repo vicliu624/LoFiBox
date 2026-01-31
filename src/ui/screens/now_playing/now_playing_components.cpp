@@ -28,6 +28,7 @@ struct CoverDecodeCtx
     lv_coord_t buf_h = 0;
     lv_coord_t offset_x = 0;
     lv_coord_t offset_y = 0;
+    int scale_fp = 1024;
 };
 #endif
 
@@ -165,12 +166,14 @@ int cover_output(JDEC* jd, void* data, JRECT* rect)
     int rect_h = static_cast<int>(rect->bottom - rect->top + 1);
 
     for (int y = 0; y < rect_h; ++y) {
-        int dst_y = ctx->offset_y + static_cast<int>(rect->top) + y;
         for (int x = 0; x < rect_w; ++x) {
             uint8_t b = *src++;
             uint8_t g = *src++;
             uint8_t r = *src++;
-            int dst_x = ctx->offset_x + static_cast<int>(rect->left) + x;
+            int src_x = static_cast<int>(rect->left) + x;
+            int src_y = static_cast<int>(rect->top) + y;
+            int dst_x = (src_x * 1024) / ctx->scale_fp - ctx->offset_x;
+            int dst_y = (src_y * 1024) / ctx->scale_fp - ctx->offset_y;
             if (dst_x < 0 || dst_y < 0 || dst_x >= ctx->buf_w || dst_y >= ctx->buf_h) {
                 continue;
             }
@@ -213,24 +216,37 @@ bool decode_cover_jpeg(layout::NowPlayingLayout& view, File& file, size_t pos, s
     }
 
     uint8_t scale = 0;
-    while (scale < 3 &&
-           ((static_cast<lv_coord_t>(jd.width) >> scale) > view.cover_size ||
-            (static_cast<lv_coord_t>(jd.height) >> scale) > view.cover_size)) {
-        ++scale;
+    int scale_fp = 1024;
+    int ratio_w = (jd.width > 0 && view.cover_size > 0)
+                      ? static_cast<int>((static_cast<int64_t>(jd.width) * 1024) / view.cover_size)
+                      : 1024;
+    int ratio_h = (jd.height > 0 && view.cover_size > 0)
+                      ? static_cast<int>((static_cast<int64_t>(jd.height) * 1024) / view.cover_size)
+                      : 1024;
+    scale_fp = (ratio_w < ratio_h) ? ratio_w : ratio_h;
+    if (scale_fp <= 0) {
+        scale_fp = 1024;
     }
 #if JD_USE_SCALE == 0
     scale = 0;
 #endif
-    lv_coord_t dec_w = static_cast<lv_coord_t>(jd.width >> scale);
-    lv_coord_t dec_h = static_cast<lv_coord_t>(jd.height >> scale);
+    ctx.scale_fp = scale_fp;
+    lv_coord_t dec_w = static_cast<lv_coord_t>((static_cast<int64_t>(jd.width) * 1024 + scale_fp - 1) / scale_fp);
+    lv_coord_t dec_h = static_cast<lv_coord_t>((static_cast<int64_t>(jd.height) * 1024 + scale_fp - 1) / scale_fp);
     if (dec_w < 1) {
         dec_w = 1;
     }
     if (dec_h < 1) {
         dec_h = 1;
     }
-    ctx.offset_x = (view.cover_size - dec_w) / 2;
-    ctx.offset_y = (view.cover_size - dec_h) / 2;
+    ctx.offset_x = (dec_w - view.cover_size) / 2;
+    ctx.offset_y = (dec_h - view.cover_size) / 2;
+    if (ctx.offset_x < 0) {
+        ctx.offset_x = 0;
+    }
+    if (ctx.offset_y < 0) {
+        ctx.offset_y = 0;
+    }
 
     rc = jd_decomp(&jd, cover_output, scale);
     if (rc != JDR_OK) {
