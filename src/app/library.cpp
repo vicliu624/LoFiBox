@@ -1,11 +1,14 @@
 #include "app/library.h"
 
 #include <SD.h>
+#include <esp_heap_caps.h>
+#include <cstring>
 
 namespace app
 {
 namespace
 {
+constexpr size_t kStringPoolSize = 512 * 1024;
 const char* kUnknownArtist = "Unknown Artist";
 const char* kUnknownAlbum = "Unknown Album";
 const char* kUnknownGenre = "Unknown Genre";
@@ -18,7 +21,29 @@ struct TagInfo
     String album;
     String genre;
     String composer;
+    uint32_t cover_pos = 0;
+    uint32_t cover_len = 0;
+    CoverFormat cover_format = CoverFormat::Unknown;
 };
+
+static const char* empty_or(const char* value, const char* fallback)
+{
+    if (value && value[0] != '\0') {
+        return value;
+    }
+    return fallback ? fallback : "";
+}
+
+static bool same_str(const char* a, const char* b)
+{
+    if (!a) {
+        a = "";
+    }
+    if (!b) {
+        b = "";
+    }
+    return strcmp(a, b) == 0;
+}
 
 static uint32_t read_u32_be(const uint8_t* data)
 {
@@ -65,13 +90,32 @@ static String parent_dir(const String& path, int levels_up)
     return dir.substring(last + 1);
 }
 
+static void append_utf8(String& out, uint32_t codepoint)
+{
+    if (codepoint <= 0x7F) {
+        out += static_cast<char>(codepoint);
+    } else if (codepoint <= 0x7FF) {
+        out += static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F));
+        out += static_cast<char>(0x80 | (codepoint & 0x3F));
+    } else if (codepoint <= 0xFFFF) {
+        out += static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F));
+        out += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (codepoint & 0x3F));
+    } else if (codepoint <= 0x10FFFF) {
+        out += static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07));
+        out += static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F));
+        out += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (codepoint & 0x3F));
+    }
+}
+
 static String decode_text_frame(uint8_t encoding, const uint8_t* data, size_t len)
 {
     if (len == 0) {
         return String();
     }
 
-    if (encoding == 0 || encoding == 3) {
+    if (encoding == 3) {
         String out;
         out.reserve(len + 1);
         for (size_t i = 0; i < len; ++i) {
@@ -84,27 +128,67 @@ static String decode_text_frame(uint8_t encoding, const uint8_t* data, size_t le
         return out;
     }
 
-    // UTF-16: best-effort, strip BOM and take low bytes
+    if (encoding == 0) {
+        String out;
+        out.reserve(len + 1);
+        for (size_t i = 0; i < len; ++i) {
+            uint8_t b = data[i];
+            if (b == 0x00) {
+                break;
+            }
+            if (b < 0x80) {
+                out += static_cast<char>(b);
+            } else {
+                append_utf8(out, static_cast<uint32_t>(b));
+            }
+        }
+        out.trim();
+        return out;
+    }
+
+    // UTF-16/UTF-16BE -> UTF-8
+    bool big_endian = (encoding == 2);
     size_t start = 0;
-    if (len >= 2) {
-        if ((data[0] == 0xFF && data[1] == 0xFE) || (data[0] == 0xFE && data[1] == 0xFF)) {
+    if (encoding == 1 && len >= 2) {
+        if (data[0] == 0xFF && data[1] == 0xFE) {
+            big_endian = false;
             start = 2;
+        } else if (data[0] == 0xFE && data[1] == 0xFF) {
+            big_endian = true;
+            start = 2;
+        } else {
+            // Heuristic: look for zero byte position
+            if (data[0] == 0x00 && data[1] != 0x00) {
+                big_endian = true;
+            } else if (data[1] == 0x00 && data[0] != 0x00) {
+                big_endian = false;
+            }
         }
     }
+
+    if (start < len && ((len - start) & 1)) {
+        len -= 1;
+    }
+
     String out;
     out.reserve(len / 2 + 1);
     for (size_t i = start; i + 1 < len; i += 2) {
-        uint8_t b = data[i];
-        if (b == 0x00 && data[i + 1] == 0x00) {
+        uint16_t w = big_endian ? (static_cast<uint16_t>(data[i]) << 8) | data[i + 1]
+                                : (static_cast<uint16_t>(data[i + 1]) << 8) | data[i];
+        if (w == 0x0000) {
             break;
         }
-        if (b == 0x00) {
-            b = data[i + 1];
+        if (w >= 0xD800 && w <= 0xDBFF && i + 3 < len) {
+            uint16_t w2 = big_endian ? (static_cast<uint16_t>(data[i + 2]) << 8) | data[i + 3]
+                                     : (static_cast<uint16_t>(data[i + 3]) << 8) | data[i + 2];
+            if (w2 >= 0xDC00 && w2 <= 0xDFFF) {
+                uint32_t code = 0x10000 + (((w - 0xD800) << 10) | (w2 - 0xDC00));
+                append_utf8(out, code);
+                i += 2;
+                continue;
+            }
         }
-        if (b == 0x00) {
-            continue;
-        }
-        out += static_cast<char>(b);
+        append_utf8(out, static_cast<uint32_t>(w));
     }
     out.trim();
     return out;
@@ -167,6 +251,9 @@ static bool read_id3_tags(fs::FS& fs, const String& path, TagInfo& out)
             }
             const size_t max_len = 256;
             size_t read_len = frame_size > max_len ? max_len : frame_size;
+            if ((encoding == 1 || encoding == 2) && (read_len & 1)) {
+                read_len -= 1;
+            }
             uint8_t buf[max_len];
             memset(buf, 0, sizeof(buf));
             if (read_len > 0) {
@@ -190,6 +277,85 @@ static bool read_id3_tags(fs::FS& fs, const String& path, TagInfo& out)
             } else if (strcmp(frame_id, "TCOM") == 0) {
                 assign_if_empty(out.composer, text);
             }
+        } else if (strcmp(frame_id, "APIC") == 0) {
+            if (out.cover_len == 0 && frame_size > 0) {
+                size_t frame_start = f.position();
+                size_t consumed = 0;
+                uint8_t encoding = 0;
+                f.read(&encoding, 1);
+                consumed = 1;
+
+                String mime;
+                while (consumed < frame_size) {
+                    uint8_t c = 0;
+                    if (f.read(&c, 1) != 1) {
+                        break;
+                    }
+                    consumed++;
+                    if (c == 0) {
+                        break;
+                    }
+                    if (mime.length() < 32) {
+                        mime += c;
+                    }
+                }
+
+                if (consumed < frame_size) {
+                    uint8_t pic_type = 0;
+                    f.read(&pic_type, 1);
+                    consumed++;
+                }
+
+                if (consumed < frame_size) {
+                    if (encoding == 0 || encoding == 3) {
+                        uint8_t c = 0;
+                        while (consumed < frame_size) {
+                            if (f.read(&c, 1) != 1) {
+                                break;
+                            }
+                            consumed++;
+                            if (c == 0) {
+                                break;
+                            }
+                        }
+                    } else {
+                        uint8_t prev = 0;
+                        uint8_t cur = 0;
+                        while (consumed + 1 < frame_size) {
+                            if (f.read(&cur, 1) != 1) {
+                                break;
+                            }
+                            consumed++;
+                            if (prev == 0 && cur == 0) {
+                                break;
+                            }
+                            prev = cur;
+                        }
+                    }
+                }
+
+                if (consumed < frame_size) {
+                    out.cover_pos = frame_start + consumed;
+                    out.cover_len = frame_size - consumed;
+                    String lower = mime;
+                    lower.toLowerCase();
+                    if (lower.indexOf("png") >= 0) {
+                        out.cover_format = CoverFormat::Png;
+                    } else if (lower.indexOf("jpeg") >= 0 || lower.indexOf("jpg") >= 0) {
+                        out.cover_format = CoverFormat::Jpeg;
+                    } else if (lower.indexOf("bmp") >= 0) {
+                        out.cover_format = CoverFormat::Bmp;
+                    } else {
+                        out.cover_format = CoverFormat::Unknown;
+                    }
+                }
+
+                f.seek(frame_start + frame_size);
+                pos += frame_size;
+            } else {
+                f.seek(f.position() + frame_size);
+                pos += frame_size;
+            }
         } else {
             f.seek(f.position() + frame_size);
             pos += frame_size;
@@ -200,13 +366,14 @@ static bool read_id3_tags(fs::FS& fs, const String& path, TagInfo& out)
     return true;
 }
 
-static void add_unique(String* arr, int& count, int max, const String& value)
+
+static void add_unique(const char** arr, int& count, int max, const char* value)
 {
-    if (value.length() == 0) {
+    if (!value || value[0] == '\0') {
         return;
     }
     for (int i = 0; i < count; ++i) {
-        if (arr[i] == value) {
+        if (same_str(arr[i], value)) {
             return;
         }
     }
@@ -215,13 +382,13 @@ static void add_unique(String* arr, int& count, int max, const String& value)
     }
 }
 
-static void add_unique_album(AlbumInfo* arr, int& count, int max, const String& name, const String& artist)
+static void add_unique_album(AlbumInfo* arr, int& count, int max, const char* name, const char* artist)
 {
-    if (name.length() == 0) {
+    if (!name || name[0] == '\0') {
         return;
     }
     for (int i = 0; i < count; ++i) {
-        if (arr[i].name == name && arr[i].artist == artist) {
+        if (same_str(arr[i].name, name) && same_str(arr[i].artist, artist)) {
             return;
         }
     }
@@ -285,7 +452,7 @@ static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels
             }
 
             TrackInfo& track = lib.tracks[lib.track_count];
-            track.path = fname;
+            track.path = lib.pool.store(fname);
             track.added_time = file.getLastWrite();
 
             TagInfo tags;
@@ -317,16 +484,19 @@ static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels
                 composer = kUnknownComposer;
             }
 
-            track.title = title;
-            track.artist = artist;
-            track.album = album;
-            track.genre = genre;
-            track.composer = composer;
+            track.title = lib.pool.store(empty_or(title.c_str(), basename_no_ext(fname).c_str()));
+            track.artist = lib.pool.store(empty_or(artist.c_str(), kUnknownArtist));
+            track.album = lib.pool.store(empty_or(album.c_str(), kUnknownAlbum));
+            track.genre = lib.pool.store(empty_or(genre.c_str(), kUnknownGenre));
+            track.composer = lib.pool.store(empty_or(composer.c_str(), kUnknownComposer));
+            track.cover_pos = tags.cover_pos;
+            track.cover_len = tags.cover_len;
+            track.cover_format = tags.cover_format;
 
-            add_unique(lib.artists, lib.artist_count, kMaxArtists, artist);
-            add_unique_album(lib.albums, lib.album_count, kMaxAlbums, album, artist);
-            add_unique(lib.genres, lib.genre_count, kMaxGenres, genre);
-            add_unique(lib.composers, lib.composer_count, kMaxComposers, composer);
+            add_unique(lib.artists, lib.artist_count, kMaxArtists, track.artist);
+            add_unique_album(lib.albums, lib.album_count, kMaxAlbums, track.album, track.artist);
+            add_unique(lib.genres, lib.genre_count, kMaxGenres, track.genre);
+            add_unique(lib.composers, lib.composer_count, kMaxComposers, track.composer);
 
             lib.track_count++;
         }
@@ -336,8 +506,61 @@ static void scan_dir(Library& lib, fs::FS& fs, const String& dir, uint8_t levels
 
 } // namespace
 
+void StringPool::init(size_t cap)
+{
+    if (data) {
+        return;
+    }
+    capacity = cap;
+    data = static_cast<char*>(heap_caps_malloc(cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (data) {
+        in_psram = true;
+        return;
+    }
+    data = static_cast<char*>(malloc(cap));
+    if (data) {
+        in_psram = false;
+    }
+}
+
+void StringPool::reset()
+{
+    used = 0;
+}
+
+const char* StringPool::store_cstr(const char* s)
+{
+    if (!s || s[0] == '\0') {
+        return "";
+    }
+    size_t len = strlen(s);
+    size_t need = len + 1;
+    if (!data || used + need > capacity) {
+        char* dup = static_cast<char*>(malloc(need));
+        if (!dup) {
+            return "";
+        }
+        memcpy(dup, s, need);
+        return dup;
+    }
+    char* out = data + used;
+    memcpy(out, s, need);
+    used += need;
+    return out;
+}
+
+const char* StringPool::store(const String& s)
+{
+    if (s.length() == 0) {
+        return "";
+    }
+    return store_cstr(s.c_str());
+}
+
 void library_reset(Library& lib)
 {
+    lib.pool.init(kStringPoolSize);
+    lib.pool.reset();
     lib.track_count = 0;
     lib.artist_count = 0;
     lib.album_count = 0;
@@ -370,7 +593,7 @@ bool library_scan(Library& lib, fs::FS& fs, const char* root_dir, uint8_t depth,
 int library_find_artist(const Library& lib, const String& name)
 {
     for (int i = 0; i < lib.artist_count; ++i) {
-        if (lib.artists[i] == name) {
+        if (name == lib.artists[i]) {
             return i;
         }
     }
@@ -380,7 +603,7 @@ int library_find_artist(const Library& lib, const String& name)
 int library_find_album(const Library& lib, const String& name, const String& artist)
 {
     for (int i = 0; i < lib.album_count; ++i) {
-        if (lib.albums[i].name == name && lib.albums[i].artist == artist) {
+        if (name == lib.albums[i].name && artist == lib.albums[i].artist) {
             return i;
         }
     }
@@ -391,7 +614,7 @@ int library_tracks_for_artist(const Library& lib, const String& artist, int* out
 {
     int count = 0;
     for (int i = 0; i < lib.track_count && count < max; ++i) {
-        if (lib.tracks[i].artist == artist) {
+        if (artist == lib.tracks[i].artist) {
             out[count++] = i;
         }
     }
@@ -402,7 +625,7 @@ int library_tracks_for_album(const Library& lib, const String& artist, const Str
 {
     int count = 0;
     for (int i = 0; i < lib.track_count && count < max; ++i) {
-        if (lib.tracks[i].album == album && (artist.length() == 0 || lib.tracks[i].artist == artist)) {
+        if (album == lib.tracks[i].album && (artist.length() == 0 || artist == lib.tracks[i].artist)) {
             out[count++] = i;
         }
     }
@@ -413,7 +636,7 @@ int library_tracks_for_genre(const Library& lib, const String& genre, int* out, 
 {
     int count = 0;
     for (int i = 0; i < lib.track_count && count < max; ++i) {
-        if (lib.tracks[i].genre == genre) {
+        if (genre == lib.tracks[i].genre) {
             out[count++] = i;
         }
     }
@@ -424,7 +647,7 @@ int library_tracks_for_composer(const Library& lib, const String& composer, int*
 {
     int count = 0;
     for (int i = 0; i < lib.track_count && count < max; ++i) {
-        if (lib.tracks[i].composer == composer) {
+        if (composer == lib.tracks[i].composer) {
             out[count++] = i;
         }
     }
@@ -435,7 +658,7 @@ int library_albums_for_artist(const Library& lib, const String& artist, int* out
 {
     int count = 0;
     for (int i = 0; i < lib.album_count && count < max; ++i) {
-        if (lib.albums[i].artist == artist) {
+        if (artist == lib.albums[i].artist) {
             out[count++] = i;
         }
     }

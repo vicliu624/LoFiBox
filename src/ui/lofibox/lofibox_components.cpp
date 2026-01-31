@@ -32,6 +32,7 @@
 #include "ui/screens/genres/genres_layout.h"
 #include "ui/screens/genres/genres_styles.h"
 #include "ui/screens/list_page/list_page_layout.h"
+#include "ui/screens/list_page/list_page_input.h"
 #include "ui/screens/main_menu/main_menu_components.h"
 #include "ui/screens/main_menu/main_menu_input.h"
 #include "ui/screens/main_menu/main_menu_layout.h"
@@ -58,7 +59,7 @@
 #include "ui/screens/songs/songs_layout.h"
 #include "ui/screens/songs/songs_styles.h"
 #include "ui/ui_common.h"
-#include <SD.h>
+#include "ui/common/text_utils.h"
 #include "app/library.h"
 
 namespace lofi::ui::components
@@ -87,62 +88,8 @@ bool page_needs_library(PageId id)
     }
 }
 
-void scan_tick()
-{
-    lv_timer_handler();
-    yield();
-}
 
-String single_line_text(const String& input)
-{
-    String out = input;
-    for (size_t i = 0; i < out.length(); ++i) {
-        char c = out[i];
-        if (c == '\n' || c == '\r' || c == '\t') {
-            out.setCharAt(i, ' ');
-        }
-    }
-    return out;
-}
 
-String truncate_utf8(const String& input, size_t max_chars)
-{
-    if (max_chars == 0) {
-        return "";
-    }
-    const char* text = input.c_str();
-    size_t total_chars = lv_text_get_encoded_length(text);
-    if (total_chars <= max_chars) {
-        return input;
-    }
-    size_t keep = max_chars;
-    if (max_chars > 3) {
-        keep = max_chars - 3;
-    }
-    uint32_t i = 0;
-    size_t count = 0;
-    while (text[i] && count < keep) {
-        lv_text_encoded_next(text, &i);
-        ++count;
-    }
-    size_t bytes = static_cast<size_t>(i);
-    String out = input.substring(0, bytes);
-    if (max_chars > 3) {
-        out += "...";
-    }
-    return out;
-}
-
-void ensure_library_scanned(UiScreen& screen)
-{
-    if (!screen.library || screen.library->scanned) {
-        return;
-    }
-    if (!board.isSDReady()) {
-        return;
-    }
-    app::library_scan(*screen.library, SD, "/music", 3, 256, false, scan_tick);
-}
 
 struct ListPageApi
 {
@@ -408,14 +355,16 @@ ListItem* add_item(UiScreen& screen, const String& left, const String& right, Ui
     return &item;
 }
 
-int compare_ci(const String& a, const String& b)
+int compare_ci(const char* a, const char* b)
 {
-    size_t la = a.length();
-    size_t lb = b.length();
+    String sa = a ? a : "";
+    String sb = b ? b : "";
+    size_t la = sa.length();
+    size_t lb = sb.length();
     size_t l = (la < lb) ? la : lb;
     for (size_t i = 0; i < l; ++i) {
-        char ca = lower_char(a[i]);
-        char cb = lower_char(b[i]);
+        char ca = lower_char(sa[i]);
+        char cb = lower_char(sb[i]);
         if (ca < cb) {
             return -1;
         }
@@ -429,7 +378,7 @@ int compare_ci(const String& a, const String& b)
     return (la < lb) ? -1 : 1;
 }
 
-void sort_string_indices(const String* arr, int* idx, int count)
+void sort_string_indices(const char* const* arr, int* idx, int count)
 {
     for (int i = 0; i < count - 1; ++i) {
         for (int j = i + 1; j < count; ++j) {
@@ -441,6 +390,7 @@ void sort_string_indices(const String* arr, int* idx, int count)
         }
     }
 }
+
 
 void sort_album_indices(const app::Library& lib, int* idx, int count)
 {
@@ -581,67 +531,53 @@ static void build_list_page(UiScreen& screen)
     api.apply_content(screen.view.root.content);
     screen.view.list = api.create_list(screen.view.root.content);
     api.apply_list(screen.view.list.list);
+    if (screen.view.list.list) {
+        lv_obj_clear_flag(screen.view.list.list, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scroll_dir(screen.view.list.list, LV_DIR_NONE);
+    }
+    if (screen.view.root.content) {
+        lv_obj_update_layout(screen.view.root.content);
+    }
+    if (screen.view.list.list) {
+        lv_obj_update_layout(screen.view.list.list);
+    }
 
     screen.row_count = 0;
     populate_list_for_page(screen);
 
-    for (int i = 0; i < screen.items_count; ++i) {
-        if (screen.row_count >= UiScreen::kMaxItems) {
-            break;
-        }
+    lv_coord_t list_h = screen.view.list.list ? lv_obj_get_height(screen.view.list.list)
+                                              : lv_obj_get_height(screen.view.root.content);
+    if (list_h <= 0) {
+        lv_coord_t full_h = lv_display_get_vertical_resolution(nullptr);
+        lv_coord_t top_h = screens::common::layout::topbar_height();
+        list_h = (full_h > top_h) ? (full_h - top_h) : full_h;
+    }
+    lv_coord_t row_h = list_layout::row_height();
+    int visible = (row_h > 0) ? static_cast<int>(list_h / row_h) : 0;
+    if (visible < 1) {
+        visible = 1;
+    }
+    if (visible > screen.items_count) {
+        visible = screen.items_count;
+    }
+
+    for (int i = 0; i < visible; ++i) {
         list_layout::ListRowLayout row_layout = api.create_row(screen.view.list.list);
         api.apply_row(row_layout.row);
         api.apply_left(row_layout.left_label);
         api.apply_right(row_layout.right_label);
 
-        if (row_layout.icon) {
-            bool show_icon = (screen.items[i].icon != nullptr);
-            list_layout::set_row_icon_visible(row_layout, show_icon);
-            if (show_icon) {
-                lv_img_set_src(row_layout.icon, screen.items[i].icon);
-                lv_obj_clear_flag(row_layout.icon, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(row_layout.icon, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
-        lv_label_set_text(row_layout.left_label, screen.items[i].left.c_str());
-
-        const char* right_text = screen.items[i].right.length() > 0 ? screen.items[i].right.c_str() : nullptr;
-        if (!right_text) {
-            switch (screen.items[i].action) {
-            case UiIntentKind::Navigate:
-            case UiIntentKind::OpenAlbumsAll:
-            case UiIntentKind::OpenSongsAll:
-            case UiIntentKind::OpenArtist:
-            case UiIntentKind::OpenAlbum:
-            case UiIntentKind::OpenGenre:
-            case UiIntentKind::OpenComposer:
-            case UiIntentKind::OpenPlaylist:
-            case UiIntentKind::OpenEq:
-            case UiIntentKind::OpenAbout:
-                right_text = LV_SYMBOL_RIGHT;
-                break;
-            default:
-                break;
-            }
-        }
-        lv_label_set_text(row_layout.right_label, right_text ? right_text : "");
-
         RowMeta& meta = screen.rows[screen.row_count++];
-        meta.intent.kind = screen.items[i].action;
-        meta.intent.next = screen.items[i].next;
-        meta.intent.value = screen.items[i].value;
-        meta.intent.value2 = screen.items[i].value2;
-        meta.intent.item = &screen.items[i];
         meta.row = row_layout.row;
+        meta.icon = row_layout.icon;
         meta.left_label = row_layout.left_label;
         meta.right_label = row_layout.right_label;
         api.attach_row(screen, meta);
     }
 
-    lv_obj_t* first = lv_obj_get_child(screen.view.list.list, 0);
-    api.focus_first(screen.group, first);
+    screen.state.list_offset = 0;
+    screen.state.list_selected = 0;
+    screens::list_page::input::refresh_rows(screen);
 }
 
 static void build_main_menu(UiScreen& screen)
@@ -722,9 +658,9 @@ void update_topbar(UiScreen& screen)
     if (screen.state.current == PageId::NowPlaying && screen.player && screen.library &&
         screen.player->current_index >= 0 && screen.player->current_index < screen.library->track_count) {
         const app::TrackInfo& track = screen.library->tracks[screen.player->current_index];
-        String safe_title = single_line_text(track.title.length() ? track.title : String("Now Playing"));
-        String safe_album = single_line_text(track.album);
-        String safe_genre = single_line_text(track.genre);
+        String safe_title = text::single_line((track.title && track.title[0]) ? track.title : "Now Playing");
+        String safe_album = text::single_line(track.album ? track.album : "");
+        String safe_genre = text::single_line(track.genre ? track.genre : "");
         lv_label_set_long_mode(screen.view.root.top_left, LV_LABEL_LONG_CLIP);
         lv_label_set_long_mode(screen.view.root.top_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_style_text_align(screen.view.root.top_left, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
@@ -1112,10 +1048,6 @@ void build_page(UiScreen& screen)
     set_default_group(screen.group);
 
     update_topbar(screen);
-
-    if (page_needs_library(screen.state.current)) {
-        ensure_library_scanned(screen);
-    }
 
     if (screen.state.current == PageId::NowPlaying) {
         screens::now_playing::build(screen);

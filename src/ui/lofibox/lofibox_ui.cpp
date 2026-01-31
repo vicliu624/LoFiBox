@@ -2,6 +2,7 @@
 
 #include "ui/lofibox/lofibox_components.h"
 #include "ui/lofibox/lofibox_ui_internal.h"
+#include "ui/fonts/fonts.h"
 
 namespace lofi::ui
 {
@@ -177,6 +178,7 @@ bool screen_alive(const UiScreen* screen)
 
 void init(app::Library* library, app::PlayerState* player)
 {
+    init_font_fallbacks();
     s_screen.alive = false;
     s_screen.has_pending_intent = false;
     s_screen.pending_intent = {};

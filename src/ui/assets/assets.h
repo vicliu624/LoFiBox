@@ -9,3 +9,4 @@ extern const lv_image_dsc_t Music;
 extern const lv_image_dsc_t NowPlaying;
 extern const lv_image_dsc_t Playlists;
 extern const lv_image_dsc_t Settings;
+extern const lv_image_dsc_t logo;

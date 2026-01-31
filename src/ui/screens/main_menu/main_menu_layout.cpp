@@ -1,5 +1,6 @@
 #include "ui/screens/main_menu/main_menu_layout.h"
 #include "ui/screens/common/shell_layout.h"
+#include "ui/fonts/fonts.h"
 
 namespace lofi::ui::screens::main_menu::layout
 {
@@ -17,6 +18,7 @@ constexpr lv_coord_t kBaseDotGap = 12;
 constexpr lv_coord_t kBaseDotBottomMargin = 10;
 constexpr lv_coord_t kBaseDotLabelGap = 12;
 constexpr lv_coord_t kBaseLabelIconGap = 10;
+constexpr lv_coord_t kBaseLabelYOffset = -6;
 constexpr lv_coord_t kBaseMenuOffsetY = -10;
 constexpr lv_coord_t kBaseArrowInset = 6;
 constexpr lv_coord_t kBaseArrowOffsetY = -12;
@@ -80,7 +82,7 @@ MenuLayout create_menu(lv_obj_t* content)
 
     lv_coord_t icon_size = scale_min(kBaseIconSize, width, height);
     lv_coord_t icon_gap = scale_x(kBaseIconGap, width);
-    const lv_font_t* label_font = (width >= 360) ? &lv_font_montserrat_18 : &lv_font_montserrat_14;
+    const lv_font_t* label_font = font_noto_sc_16();
     lv_coord_t label_height = lv_font_get_line_height(label_font);
 
     lv_coord_t dot_size = scale_min(kBaseDotSize, width, height);
@@ -100,7 +102,7 @@ MenuLayout create_menu(lv_obj_t* content)
     if (icon_size > max_icon) {
         icon_size = max_icon;
     }
-    lv_coord_t label_top = dot_top - label_gap - label_height;
+    lv_coord_t label_top = dot_top - label_gap - label_height + scale_y(kBaseLabelYOffset, height);
     lv_coord_t icon_top = label_top - icon_gap_y - icon_size;
     if (icon_top < 0) {
         lv_coord_t delta = -icon_top;

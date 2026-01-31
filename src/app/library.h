@@ -6,6 +6,14 @@
 namespace app
 {
 
+enum class CoverFormat : uint8_t
+{
+    Unknown = 0,
+    Jpeg,
+    Png,
+    Bmp,
+};
+
 constexpr int kMaxTracks = 512;
 constexpr int kMaxArtists = 128;
 constexpr int kMaxAlbums = 256;
@@ -13,14 +21,30 @@ constexpr int kMaxGenres = 64;
 constexpr int kMaxComposers = 64;
 constexpr int kMaxPlaylistTracks = 256;
 
+struct StringPool
+{
+    char* data = nullptr;
+    size_t capacity = 0;
+    size_t used = 0;
+    bool in_psram = false;
+
+    void init(size_t cap);
+    void reset();
+    const char* store(const String& s);
+    const char* store_cstr(const char* s);
+};
+
 struct TrackInfo
 {
-    String path;
-    String title;
-    String artist;
-    String album;
-    String genre;
-    String composer;
+    const char* path = "";
+    const char* title = "";
+    const char* artist = "";
+    const char* album = "";
+    const char* genre = "";
+    const char* composer = "";
+    uint32_t cover_pos = 0;
+    uint32_t cover_len = 0;
+    CoverFormat cover_format = CoverFormat::Unknown;
     uint32_t duration_sec = 0;
     uint32_t added_time = 0;
     uint32_t play_count = 0;
@@ -29,8 +53,8 @@ struct TrackInfo
 
 struct AlbumInfo
 {
-    String name;
-    String artist;
+    const char* name = "";
+    const char* artist = "";
 };
 
 struct Library
@@ -38,18 +62,19 @@ struct Library
     TrackInfo tracks[kMaxTracks];
     int track_count = 0;
 
-    String artists[kMaxArtists];
+    const char* artists[kMaxArtists] = {};
     int artist_count = 0;
 
     AlbumInfo albums[kMaxAlbums];
     int album_count = 0;
 
-    String genres[kMaxGenres];
+    const char* genres[kMaxGenres] = {};
     int genre_count = 0;
 
-    String composers[kMaxComposers];
+    const char* composers[kMaxComposers] = {};
     int composer_count = 0;
 
+    StringPool pool{};
     bool scanned = false;
 };
 

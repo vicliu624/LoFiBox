@@ -95,8 +95,10 @@ struct RowMeta
     UiScreen* screen = nullptr;
     UiIntent intent{};
     lv_obj_t* row = nullptr;
+    lv_obj_t* icon = nullptr;
     lv_obj_t* left_label = nullptr;
     lv_obj_t* right_label = nullptr;
+    int item_index = -1;
 };
 
 enum class TimerDomain
@@ -143,6 +145,8 @@ struct UiState
     int last_track_index = -2;
     uint32_t last_meta_version = 0;
     uint32_t last_cover_version = 0;
+    int list_offset = 0;
+    int list_selected = 0;
 };
 
 struct UiView

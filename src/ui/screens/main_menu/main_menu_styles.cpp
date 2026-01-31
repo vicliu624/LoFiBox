@@ -1,4 +1,5 @@
 #include "ui/screens/main_menu/main_menu_styles.h"
+#include "ui/fonts/fonts.h"
 
 namespace lofi::ui::screens::main_menu::styles
 {
@@ -23,8 +24,8 @@ void init_once()
     s_inited = true;
 
     lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
-    const lv_font_t* label_font = (w >= 360) ? &lv_font_source_han_sans_sc_16_cjk : &lv_font_source_han_sans_sc_14_cjk;
-    const lv_font_t* arrow_font = (w >= 360) ? &lv_font_source_han_sans_sc_16_cjk : &lv_font_source_han_sans_sc_14_cjk;
+    const lv_font_t* label_font = font_noto_sc_16();
+    const lv_font_t* arrow_font = font_noto_sc_16();
 
     lv_style_init(&s_content);
     lv_style_set_bg_color(&s_content, lv_color_hex(0x0b0b0b));

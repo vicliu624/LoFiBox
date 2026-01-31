@@ -4,6 +4,7 @@
 #include <SD.h>
 #include <FS.h>
 #include <Audio.h>
+#include <cstring>
 
 #include "board/BoardBase.h"
 
@@ -25,6 +26,17 @@ static bool match_sig(const uint8_t* buf, size_t len, const uint8_t* sig, size_t
         return false;
     }
     return memcmp(buf, sig, siglen) == 0;
+}
+
+static bool same_str(const char* a, const char* b)
+{
+    if (!a) {
+        a = "";
+    }
+    if (!b) {
+        b = "";
+    }
+    return strcmp(a, b) == 0;
 }
 
 static CoverFormat detect_cover_format(File& file, size_t pos)
@@ -141,9 +153,16 @@ static void start_track(int index)
     track.play_count++;
     track.last_played = millis() / 1000;
     reset_cover(*s_state);
+    if (track.cover_len > 0 && track.cover_format != CoverFormat::Unknown) {
+        s_state->cover_pos = track.cover_pos;
+        s_state->cover_len = track.cover_len;
+        s_state->cover_format = track.cover_format;
+        s_state->cover_track_index = index;
+        s_state->cover_ready = true;
+    }
 
     s_audio.stopSong();
-    s_audio.connecttoFS(SD, track.path.c_str());
+    s_audio.connecttoFS(SD, track.path ? track.path : "");
 }
 
 static void pick_next(bool forward)
@@ -185,7 +204,7 @@ static void update_from_id3(const char* info)
         return;
     }
 
-    auto assignKV = [&](const char* key, String& out) {
+    auto assignKV = [&](const char* key, const char*& out) {
         int n = strlen(key);
         if (s.startsWith(key)) {
             int pos = n;
@@ -194,8 +213,8 @@ static void update_from_id3(const char* info)
             }
             String v = s.substring(pos);
             v.trim();
-            if (v.length() > 0 && out != v) {
-                out = v;
+            if (v.length() > 0 && !same_str(out, v.c_str())) {
+                out = s_library->pool.store(v);
                 return true;
             }
         }

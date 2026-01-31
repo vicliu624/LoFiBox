@@ -1,4 +1,5 @@
 #include "ui/screens/now_playing/now_playing_styles.h"
+#include "ui/fonts/fonts.h"
 
 namespace lofi::ui::screens::now_playing::styles
 {
@@ -47,11 +48,11 @@ void init_once()
     lv_style_set_border_color(&s_cover, lv_color_hex(0x6c6f76));
 
     lv_style_init(&s_title);
-    lv_style_set_text_font(&s_title, &lv_font_source_han_sans_sc_16_cjk);
+    lv_style_set_text_font(&s_title, font_noto_sc_16());
     lv_style_set_text_color(&s_title, lv_color_hex(0xf8f8f8));
 
     lv_style_init(&s_subtitle);
-    lv_style_set_text_font(&s_subtitle, &lv_font_source_han_sans_sc_16_cjk);
+    lv_style_set_text_font(&s_subtitle, font_noto_sc_16());
     lv_style_set_text_color(&s_subtitle, lv_color_hex(0xc7c7c7));
 
     lv_style_init(&s_time_label);

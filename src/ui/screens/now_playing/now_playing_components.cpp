@@ -527,7 +527,7 @@ void update_cover(UiScreen& screen)
     }
 
     const app::TrackInfo& track = screen.library->tracks[screen.player->current_index];
-    File f = SD.open(track.path.c_str(), FILE_READ);
+    File f = SD.open(track.path ? track.path : "", FILE_READ);
     if (!f) {
         clear_cover_buffer(view, bg);
         lv_obj_invalidate(view.cover);
@@ -583,6 +583,10 @@ void update_cover(UiScreen& screen)
 
 void build(UiScreen& screen)
 {
+    screen.state.last_track_index = -2;
+    screen.state.last_meta_version = 0xFFFFFFFFu;
+    screen.state.last_cover_version = 0xFFFFFFFFu;
+
     if (screen.view.now.cover_buf) {
         lv_free(screen.view.now.cover_buf);
         screen.view.now.cover_buf = nullptr;
@@ -671,9 +675,9 @@ void update(UiScreen& screen)
         screen.state.last_track_index = idx;
         if (has_track) {
             const app::TrackInfo& track = screen.library->tracks[idx];
-            String safe_title = track.title.length() ? track.title : String("Unknown Title");
-            String safe_artist = track.artist.length() ? track.artist : String("Unknown Artist");
-            String safe_album = track.album.length() ? track.album : String("Unknown Album");
+            String safe_title = (track.title && track.title[0]) ? String(track.title) : String("Unknown Title");
+            String safe_artist = (track.artist && track.artist[0]) ? String(track.artist) : String("Unknown Artist");
+            String safe_album = (track.album && track.album[0]) ? String(track.album) : String("Unknown Album");
             safe_title.replace('\n', ' ');
             safe_title.replace('\r', ' ');
             safe_artist.replace('\n', ' ');

@@ -1,4 +1,5 @@
 #include "ui/screens/compilations/compilations_components.h"
+#include <cstring>
 
 namespace lofi::ui::screens::compilations
 {
@@ -13,15 +14,15 @@ void populate(UiScreen& screen)
     bool is_compilation[app::kMaxAlbums] = {};
     for (int i = 0; i < screen.library->album_count; ++i) {
         for (int j = i + 1; j < screen.library->album_count; ++j) {
-            if (screen.library->albums[i].name == screen.library->albums[j].name &&
-                screen.library->albums[i].artist != screen.library->albums[j].artist) {
+            if (strcmp(screen.library->albums[i].name, screen.library->albums[j].name) == 0 &&
+                strcmp(screen.library->albums[i].artist, screen.library->albums[j].artist) != 0) {
                 is_compilation[i] = true;
                 is_compilation[j] = true;
             }
         }
     }
 
-    String names[app::kMaxAlbums];
+    const char* names[app::kMaxAlbums] = {};
     int name_count = 0;
     for (int i = 0; i < screen.library->album_count; ++i) {
         if (!is_compilation[i]) {
@@ -29,7 +30,7 @@ void populate(UiScreen& screen)
         }
         bool exists = false;
         for (int j = 0; j < name_count; ++j) {
-            if (names[j] == screen.library->albums[i].name) {
+            if (strcmp(names[j], screen.library->albums[i].name) == 0) {
                 exists = true;
                 break;
             }
