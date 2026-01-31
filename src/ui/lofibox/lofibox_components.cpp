@@ -775,34 +775,58 @@ void update_topbar(UiScreen& screen)
             center = "";
         }
         lv_label_set_text(screen.view.root.top_title, center.c_str());
+        if (screen.view.root.top_title_wrap) {
+            lv_obj_set_width(screen.view.root.top_title_wrap, title_w);
+            lv_obj_set_height(screen.view.root.top_title_wrap, LV_SIZE_CONTENT);
+            lv_obj_align(screen.view.root.top_title_wrap, LV_ALIGN_CENTER, 0, 0);
+        }
         lv_obj_set_width(screen.view.root.top_title, title_w);
-        lv_obj_align(screen.view.root.top_title, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_align(screen.view.root.top_title, LV_ALIGN_LEFT_MID, 0, 0);
 
         lv_obj_set_style_text_color(screen.view.root.top_left, lv_color_hex(0xf2f2f2), LV_PART_MAIN);
         lv_obj_set_style_text_color(screen.view.root.top_title, lv_color_hex(0x8f949a), LV_PART_MAIN);
 
         if (screen.view.root.top_title_fade_left && screen.view.root.top_title_fade_right) {
-            lv_coord_t title_x = lv_obj_get_x(screen.view.root.top_title);
+            bool show_fade = true;
+            const lv_font_t* font = lv_obj_get_style_text_font(screen.view.root.top_title, LV_PART_MAIN);
+            if (font) {
+                lv_point_t text_size{};
+                lv_coord_t letter_space = lv_obj_get_style_text_letter_space(screen.view.root.top_title, LV_PART_MAIN);
+                lv_coord_t line_space = lv_obj_get_style_text_line_space(screen.view.root.top_title, LV_PART_MAIN);
+                lv_txt_get_size(&text_size, center.c_str(), font, letter_space, line_space, LV_COORD_MAX,
+                                LV_TEXT_FLAG_NONE);
+                if (text_size.x <= title_w - 2) {
+                    show_fade = false;
+                }
+            }
+
             lv_coord_t title_w_actual = lv_obj_get_width(screen.view.root.top_title);
             if (title_w_actual > 0) {
                 title_w = title_w_actual;
             }
-            lv_coord_t bar_h = lv_obj_get_height(screen.view.root.topbar);
-            lv_coord_t fade_w = title_w / 6;
-            if (fade_w < 10) {
+            lv_coord_t bar_h = lv_obj_get_height(screen.view.root.top_title_wrap
+                                                     ? screen.view.root.top_title_wrap
+                                                     : screen.view.root.topbar);
+            lv_coord_t fade_w = title_w / 12;
+            if (fade_w < 6) {
+                fade_w = 6;
+            }
+            if (fade_w > 10) {
                 fade_w = 10;
             }
-            if (fade_w > 18) {
-                fade_w = 18;
+            if (show_fade) {
+                lv_obj_clear_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_size(screen.view.root.top_title_fade_left, fade_w, bar_h);
+                lv_obj_align(screen.view.root.top_title_fade_left, LV_ALIGN_LEFT_MID, 0, 0);
+                lv_obj_set_size(screen.view.root.top_title_fade_right, fade_w, bar_h);
+                lv_obj_align(screen.view.root.top_title_fade_right, LV_ALIGN_RIGHT_MID, 0, 0);
+                lv_obj_move_foreground(screen.view.root.top_title_fade_left);
+                lv_obj_move_foreground(screen.view.root.top_title_fade_right);
+            } else {
+                lv_obj_add_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
             }
-            lv_obj_clear_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_set_size(screen.view.root.top_title_fade_left, fade_w, bar_h);
-            lv_obj_set_pos(screen.view.root.top_title_fade_left, title_x, 0);
-            lv_obj_set_size(screen.view.root.top_title_fade_right, fade_w, bar_h);
-            lv_obj_set_pos(screen.view.root.top_title_fade_right, title_x + title_w - fade_w, 0);
-            lv_obj_move_foreground(screen.view.root.top_title_fade_left);
-            lv_obj_move_foreground(screen.view.root.top_title_fade_right);
         }
 
         update_battery(screen);
@@ -1070,6 +1094,11 @@ void build_page(UiScreen& screen)
     shell_styles::apply_root(screen.view.root.root);
     shell_styles::apply_topbar(screen.view.root.topbar);
     shell_styles::apply_topbar_label(screen.view.root.top_left);
+    if (screen.view.root.top_title_wrap) {
+        lv_obj_set_style_bg_opa(screen.view.root.top_title_wrap, LV_OPA_0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(screen.view.root.top_title_wrap, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(screen.view.root.top_title_wrap, 0, LV_PART_MAIN);
+    }
     shell_styles::apply_topbar_title(screen.view.root.top_title);
     shell_styles::apply_topbar_status(screen.view.root.top_status);
     shell_styles::apply_topbar_label(screen.view.root.top_signal);

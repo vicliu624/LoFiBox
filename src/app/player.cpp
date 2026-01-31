@@ -1,5 +1,6 @@
 #include "app/player.h"
 
+#include <Arduino.h>
 #include <SD.h>
 #include <FS.h>
 #include <Audio.h>
@@ -25,6 +26,38 @@ static bool match_sig(const uint8_t* buf, size_t len, const uint8_t* sig, size_t
     }
     return memcmp(buf, sig, siglen) == 0;
 }
+
+static CoverFormat detect_cover_format(File& file, size_t pos)
+{
+    if (!file) {
+        return CoverFormat::Unknown;
+    }
+    uint8_t buf[8] = {};
+    size_t saved = file.position();
+    file.seek(pos);
+    size_t rd = file.read(buf, sizeof(buf));
+    file.seek(saved);
+    if (rd >= 2) {
+        const uint8_t sig_jpg[2] = {0xFF, 0xD8};
+        if (match_sig(buf, rd, sig_jpg, sizeof(sig_jpg))) {
+            return CoverFormat::Jpeg;
+        }
+    }
+    if (rd >= 8) {
+        const uint8_t sig_png[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        if (match_sig(buf, rd, sig_png, sizeof(sig_png))) {
+            return CoverFormat::Png;
+        }
+    }
+    if (rd >= 2) {
+        const uint8_t sig_bmp[2] = {'B', 'M'};
+        if (match_sig(buf, rd, sig_bmp, sizeof(sig_bmp))) {
+            return CoverFormat::Bmp;
+        }
+    }
+    return CoverFormat::Unknown;
+}
+
 
 static bool find_cover_start(File& file, size_t pos, size_t size, size_t& image_pos, CoverFormat& fmt)
 {
@@ -79,6 +112,7 @@ static bool find_cover_start(File& file, size_t pos, size_t size, size_t& image_
 
     return false;
 }
+
 
 static void reset_cover(PlayerState& state)
 {
@@ -224,19 +258,32 @@ static void handle_id3_image(File& file, size_t pos, size_t size)
     size_t saved_pos = file.position();
     size_t image_pos = pos;
     CoverFormat fmt = CoverFormat::Unknown;
-    bool found = find_cover_start(file, pos, size, image_pos, fmt);
-
+    fmt = detect_cover_format(file, image_pos);
+    bool found = (fmt != CoverFormat::Unknown);
+    if (!found) {
+        found = find_cover_start(file, pos, size, image_pos, fmt);
+    }
     if (!found || fmt == CoverFormat::Unknown) {
+        Serial.printf("[ID3] cover not found pos=%u size=%u\n",
+                      static_cast<unsigned>(pos),
+                      static_cast<unsigned>(size));
         file.seek(saved_pos);
         return;
     }
 
     size_t image_len = size - (image_pos - pos);
-    if (image_len == 0 || image_len > kCoverMaxBytes) {
+    if (image_len == 0) {
+        Serial.printf("[ID3] cover length zero pos=%u size=%u\n",
+                      static_cast<unsigned>(pos),
+                      static_cast<unsigned>(size));
         file.seek(saved_pos);
         return;
     }
 
+    Serial.printf("[ID3] cover pos=%u len=%u fmt=%d\n",
+                  static_cast<unsigned>(image_pos),
+                  static_cast<unsigned>(image_len),
+                  static_cast<int>(fmt));
     s_state->cover_ready = true;
     s_state->cover_format = fmt;
     s_state->cover_pos = static_cast<uint32_t>(image_pos);

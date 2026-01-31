@@ -10,6 +10,7 @@ struct RootLayout
     lv_obj_t* topbar = nullptr;
     lv_obj_t* content = nullptr;
     lv_obj_t* top_left = nullptr;
+    lv_obj_t* top_title_wrap = nullptr;
     lv_obj_t* top_title = nullptr;
     lv_obj_t* top_title_fade_left = nullptr;
     lv_obj_t* top_title_fade_right = nullptr;

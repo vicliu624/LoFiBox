@@ -58,9 +58,10 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
         offset_y = (content_h - design_h) / 2;
     }
 
-    lv_coord_t cover_x = scale(36);
-    lv_coord_t cover_y = offset_y + scale(42);
-    lv_coord_t cover_size = scale(131);
+    lv_coord_t cover_delta = scale(20);
+    lv_coord_t cover_x = scale(36) - cover_delta;
+    lv_coord_t cover_y = offset_y + scale(42) - cover_delta;
+    lv_coord_t cover_size = scale(151);
     if (cover_size < 24) {
         cover_size = 24;
     }
@@ -72,7 +73,7 @@ NowPlayingLayout create_now_playing(lv_obj_t* content)
     lv_coord_t panel_h = scale(158);
     (void)panel_y;
     (void)panel_h;
-    lv_coord_t meta_x = scale(181);
+    lv_coord_t meta_x = cover_x + cover_size + scale(14);
     lv_coord_t pad_right = scale(16);
     lv_coord_t meta_w = (panel_x + panel_w) - meta_x - pad_right;
     lv_coord_t title_y = offset_y + scale(53) - 14;

@@ -4,6 +4,7 @@
 #include "ui/screens/now_playing/now_playing_layout.h"
 #include "ui/screens/now_playing/now_playing_styles.h"
 
+#include <Arduino.h>
 #include <SD.h>
 #include <cstring>
 #include "src/libs/tjpgd/tjpgd.h"
@@ -14,7 +15,7 @@ namespace lofi::ui::screens::now_playing
 namespace
 {
 #if LV_USE_TJPGD
-constexpr size_t kJpegWorkBufSize = 4096;
+constexpr size_t kJpegWorkBufSize = 8192;
 
 struct CoverDecodeCtx
 {
@@ -55,6 +56,65 @@ uint16_t blend_rgb565(uint16_t fg, uint16_t bg, uint8_t alpha)
         return bg;
     }
     return lv_color_16_16_mix(fg, bg, alpha);
+}
+
+bool find_cover_start(File& file, size_t pos, size_t size, size_t& image_pos, app::CoverFormat& fmt)
+{
+    const uint8_t sig_jpg[2] = {0xFF, 0xD8};
+    const uint8_t sig_png[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+    const uint8_t sig_bmp[2] = {'B', 'M'};
+
+    image_pos = pos;
+    fmt = app::CoverFormat::Unknown;
+
+    if (!file || size == 0) {
+        return false;
+    }
+
+    constexpr size_t kScanMax = 16384;
+    size_t max_scan = (size < kScanMax) ? size : kScanMax;
+    size_t scanned = 0;
+    uint8_t buf[512] = {};
+
+    file.seek(pos);
+    while (scanned < max_scan) {
+        size_t to_read = max_scan - scanned;
+        if (to_read > sizeof(buf)) {
+            to_read = sizeof(buf);
+        }
+        size_t rd = file.read(buf, to_read);
+        if (rd == 0) {
+            break;
+        }
+
+        for (size_t i = 0; i + 1 < rd; ++i) {
+            if (buf[i] == sig_jpg[0] && buf[i + 1] == sig_jpg[1]) {
+                image_pos = pos + scanned + i;
+                fmt = app::CoverFormat::Jpeg;
+                return true;
+            }
+        }
+
+        for (size_t i = 0; i + sizeof(sig_png) <= rd; ++i) {
+            if (memcmp(&buf[i], sig_png, sizeof(sig_png)) == 0) {
+                image_pos = pos + scanned + i;
+                fmt = app::CoverFormat::Png;
+                return true;
+            }
+        }
+
+        for (size_t i = 0; i + 1 < rd; ++i) {
+            if (buf[i] == sig_bmp[0] && buf[i + 1] == sig_bmp[1]) {
+                image_pos = pos + scanned + i;
+                fmt = app::CoverFormat::Bmp;
+                return true;
+            }
+        }
+
+        scanned += rd;
+    }
+
+    return false;
 }
 
 void clear_cover_buffer(layout::NowPlayingLayout& view, uint16_t color)
@@ -144,6 +204,10 @@ bool decode_cover_jpeg(layout::NowPlayingLayout& view, File& file, size_t pos, s
     JDEC jd{};
     JRESULT rc = jd_prepare(&jd, cover_input, work, kJpegWorkBufSize, &ctx);
     if (rc != JDR_OK) {
+        Serial.printf("[COVER] jpeg prepare fail rc=%d pos=%u len=%u\n",
+                      static_cast<int>(rc),
+                      static_cast<unsigned>(pos),
+                      static_cast<unsigned>(len));
         lv_free(work);
         return false;
     }
@@ -154,6 +218,9 @@ bool decode_cover_jpeg(layout::NowPlayingLayout& view, File& file, size_t pos, s
             (static_cast<lv_coord_t>(jd.height) >> scale) > view.cover_size)) {
         ++scale;
     }
+#if JD_USE_SCALE == 0
+    scale = 0;
+#endif
     lv_coord_t dec_w = static_cast<lv_coord_t>(jd.width >> scale);
     lv_coord_t dec_h = static_cast<lv_coord_t>(jd.height >> scale);
     if (dec_w < 1) {
@@ -166,6 +233,12 @@ bool decode_cover_jpeg(layout::NowPlayingLayout& view, File& file, size_t pos, s
     ctx.offset_y = (view.cover_size - dec_h) / 2;
 
     rc = jd_decomp(&jd, cover_output, scale);
+    if (rc != JDR_OK) {
+        Serial.printf("[COVER] jpeg decomp fail rc=%d pos=%u len=%u\n",
+                      static_cast<int>(rc),
+                      static_cast<unsigned>(pos),
+                      static_cast<unsigned>(len));
+    }
     lv_free(work);
     return (rc == JDR_OK);
 }
@@ -447,16 +520,30 @@ void update_cover(UiScreen& screen)
     }
 
     clear_cover_buffer(view, bg);
+    size_t image_pos = screen.player->cover_pos;
+    size_t image_len = screen.player->cover_len;
+    app::CoverFormat fmt = screen.player->cover_format;
+
+    if (fmt == app::CoverFormat::Unknown) {
+        size_t found_pos = 0;
+        app::CoverFormat found_fmt = app::CoverFormat::Unknown;
+        if (find_cover_start(f, screen.player->cover_pos, screen.player->cover_len, found_pos, found_fmt)) {
+            image_pos = found_pos;
+            image_len = screen.player->cover_len - (found_pos - screen.player->cover_pos);
+            fmt = found_fmt;
+        }
+    }
+
     bool ok = false;
-    switch (screen.player->cover_format) {
+    switch (fmt) {
     case app::CoverFormat::Jpeg:
-        ok = decode_cover_jpeg(view, f, screen.player->cover_pos, screen.player->cover_len);
+        ok = decode_cover_jpeg(view, f, image_pos, image_len);
         break;
     case app::CoverFormat::Png:
-        ok = decode_cover_png(view, f, screen.player->cover_pos, screen.player->cover_len);
+        ok = decode_cover_png(view, f, image_pos, image_len);
         break;
     case app::CoverFormat::Bmp:
-        ok = decode_cover_bmp(view, f, screen.player->cover_pos, screen.player->cover_len);
+        ok = decode_cover_bmp(view, f, image_pos, image_len);
         break;
     default:
         ok = false;
@@ -468,6 +555,10 @@ void update_cover(UiScreen& screen)
     if (ok) {
         lv_obj_clear_flag(view.cover, LV_OBJ_FLAG_HIDDEN);
     } else {
+        Serial.printf("[COVER] decode failed fmt=%d pos=%u len=%u\n",
+                      static_cast<int>(fmt),
+                      static_cast<unsigned>(image_pos),
+                      static_cast<unsigned>(image_len));
         lv_obj_add_flag(view.cover, LV_OBJ_FLAG_HIDDEN);
     }
 }
