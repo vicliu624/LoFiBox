@@ -62,6 +62,16 @@ RootLayout create_root()
     refs.top_title = lv_label_create(refs.topbar);
     lv_obj_align(refs.top_title, LV_ALIGN_CENTER, 0, 0);
 
+    refs.top_title_fade_left = lv_obj_create(refs.topbar);
+    lv_obj_set_size(refs.top_title_fade_left, 10, topbar_height());
+    lv_obj_align(refs.top_title_fade_left, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(refs.top_title_fade_left, LV_OBJ_FLAG_SCROLLABLE);
+
+    refs.top_title_fade_right = lv_obj_create(refs.topbar);
+    lv_obj_set_size(refs.top_title_fade_right, 10, topbar_height());
+    lv_obj_align(refs.top_title_fade_right, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(refs.top_title_fade_right, LV_OBJ_FLAG_SCROLLABLE);
+
     refs.top_status = lv_obj_create(refs.topbar);
     lv_obj_set_size(refs.top_status, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(refs.top_status, LV_FLEX_FLOW_ROW);

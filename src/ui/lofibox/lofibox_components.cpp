@@ -710,6 +710,12 @@ void update_topbar(UiScreen& screen)
     if (screen.state.current == PageId::MainMenu) {
         lv_label_set_text(screen.view.root.top_left, "");
         lv_label_set_text(screen.view.root.top_title, "");
+        if (screen.view.root.top_title_fade_left) {
+            lv_obj_add_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (screen.view.root.top_title_fade_right) {
+            lv_obj_add_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
+        }
         update_battery(screen);
         return;
     }
@@ -734,29 +740,29 @@ void update_topbar(UiScreen& screen)
         if (font_left) {
             lv_coord_t char_w = lv_font_get_glyph_width(font_left, 'W', 0);
             if (char_w > 0) {
-                lv_obj_set_width(screen.view.root.top_left, char_w * 7);
+                lv_obj_set_width(screen.view.root.top_left, char_w * 2);
             } else {
-                lv_obj_set_width(screen.view.root.top_left, (w * 25) / 100);
+                lv_obj_set_width(screen.view.root.top_left, (w * 10) / 100);
             }
         } else {
-            lv_obj_set_width(screen.view.root.top_left, (w * 25) / 100);
+            lv_obj_set_width(screen.view.root.top_left, (w * 10) / 100);
         }
+        lv_coord_t title_w = (w * 45) / 100;
         const lv_font_t* font_title = lv_obj_get_style_text_font(screen.view.root.top_title, LV_PART_MAIN);
         if (font_title) {
             lv_coord_t char_w = lv_font_get_glyph_width(font_title, 'W', 0);
             if (char_w > 0) {
-                lv_obj_set_width(screen.view.root.top_title, char_w * 18);
+                title_w = char_w * 18;
             } else {
-                lv_obj_set_width(screen.view.root.top_title, (w * 45) / 100);
+                title_w = (w * 45) / 100;
             }
         } else {
-            lv_obj_set_width(screen.view.root.top_title, (w * 45) / 100);
+            title_w = (w * 45) / 100;
         }
         lv_obj_set_height(screen.view.root.top_left, LV_SIZE_CONTENT);
         lv_obj_set_height(screen.view.root.top_title, LV_SIZE_CONTENT);
 
-        String left = String(LV_SYMBOL_LEFT) + " " + truncate_utf8(safe_title, 10);
-        lv_label_set_text(screen.view.root.top_left, left.c_str());
+        lv_label_set_text(screen.view.root.top_left, LV_SYMBOL_LEFT);
 
         String center;
         if (safe_album.length() > 0 && safe_genre.length() > 0) {
@@ -769,9 +775,35 @@ void update_topbar(UiScreen& screen)
             center = "";
         }
         lv_label_set_text(screen.view.root.top_title, center.c_str());
+        lv_obj_set_width(screen.view.root.top_title, title_w);
+        lv_obj_align(screen.view.root.top_title, LV_ALIGN_CENTER, 0, 0);
 
         lv_obj_set_style_text_color(screen.view.root.top_left, lv_color_hex(0xf2f2f2), LV_PART_MAIN);
         lv_obj_set_style_text_color(screen.view.root.top_title, lv_color_hex(0x8f949a), LV_PART_MAIN);
+
+        if (screen.view.root.top_title_fade_left && screen.view.root.top_title_fade_right) {
+            lv_coord_t title_x = lv_obj_get_x(screen.view.root.top_title);
+            lv_coord_t title_w_actual = lv_obj_get_width(screen.view.root.top_title);
+            if (title_w_actual > 0) {
+                title_w = title_w_actual;
+            }
+            lv_coord_t bar_h = lv_obj_get_height(screen.view.root.topbar);
+            lv_coord_t fade_w = title_w / 6;
+            if (fade_w < 10) {
+                fade_w = 10;
+            }
+            if (fade_w > 18) {
+                fade_w = 18;
+            }
+            lv_obj_clear_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_size(screen.view.root.top_title_fade_left, fade_w, bar_h);
+            lv_obj_set_pos(screen.view.root.top_title_fade_left, title_x, 0);
+            lv_obj_set_size(screen.view.root.top_title_fade_right, fade_w, bar_h);
+            lv_obj_set_pos(screen.view.root.top_title_fade_right, title_x + title_w - fade_w, 0);
+            lv_obj_move_foreground(screen.view.root.top_title_fade_left);
+            lv_obj_move_foreground(screen.view.root.top_title_fade_right);
+        }
 
         update_battery(screen);
         return;
@@ -780,6 +812,13 @@ void update_topbar(UiScreen& screen)
         lv_label_set_text(screen.view.root.top_left, LV_SYMBOL_LEFT " Back");
     } else {
         lv_label_set_text(screen.view.root.top_left, "Menu");
+    }
+
+    if (screen.view.root.top_title_fade_left) {
+        lv_obj_add_flag(screen.view.root.top_title_fade_left, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (screen.view.root.top_title_fade_right) {
+        lv_obj_add_flag(screen.view.root.top_title_fade_right, LV_OBJ_FLAG_HIDDEN);
     }
 
     lv_label_set_text(screen.view.root.top_title, current_page_title(screen));
@@ -1035,6 +1074,8 @@ void build_page(UiScreen& screen)
     shell_styles::apply_topbar_status(screen.view.root.top_status);
     shell_styles::apply_topbar_label(screen.view.root.top_signal);
     shell_styles::apply_topbar_label(screen.view.root.top_battery);
+    shell_styles::apply_topbar_fade_left(screen.view.root.top_title_fade_left);
+    shell_styles::apply_topbar_fade_right(screen.view.root.top_title_fade_right);
 
     if (!screen.group) {
         screen.group = lv_group_create();

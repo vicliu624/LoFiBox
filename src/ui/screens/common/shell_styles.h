@@ -11,5 +11,7 @@ void apply_topbar(lv_obj_t* obj);
 void apply_topbar_label(lv_obj_t* obj);
 void apply_topbar_title(lv_obj_t* obj);
 void apply_topbar_status(lv_obj_t* obj);
+void apply_topbar_fade_left(lv_obj_t* obj);
+void apply_topbar_fade_right(lv_obj_t* obj);
 
 } // namespace lofi::ui::screens::common::styles

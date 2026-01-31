@@ -10,6 +10,8 @@ static lv_style_t s_topbar;
 static lv_style_t s_topbar_label;
 static lv_style_t s_topbar_title;
 static lv_style_t s_topbar_status;
+static lv_style_t s_topbar_fade_left;
+static lv_style_t s_topbar_fade_right;
 }
 
 void init_once()
@@ -50,6 +52,22 @@ void init_once()
     lv_style_set_bg_opa(&s_topbar_status, LV_OPA_0);
     lv_style_set_border_width(&s_topbar_status, 0);
     lv_style_set_pad_column(&s_topbar_status, 6);
+
+    lv_style_init(&s_topbar_fade_left);
+    lv_style_set_bg_color(&s_topbar_fade_left, lv_color_hex(0x2b2b2b));
+    lv_style_set_bg_grad_color(&s_topbar_fade_left, lv_color_hex(0x2b2b2b));
+    lv_style_set_bg_grad_dir(&s_topbar_fade_left, LV_GRAD_DIR_HOR);
+    lv_style_set_bg_opa(&s_topbar_fade_left, LV_OPA_COVER);
+    lv_style_set_bg_grad_opa(&s_topbar_fade_left, LV_OPA_TRANSP);
+    lv_style_set_border_width(&s_topbar_fade_left, 0);
+
+    lv_style_init(&s_topbar_fade_right);
+    lv_style_set_bg_color(&s_topbar_fade_right, lv_color_hex(0x2b2b2b));
+    lv_style_set_bg_grad_color(&s_topbar_fade_right, lv_color_hex(0x2b2b2b));
+    lv_style_set_bg_grad_dir(&s_topbar_fade_right, LV_GRAD_DIR_HOR);
+    lv_style_set_bg_opa(&s_topbar_fade_right, LV_OPA_TRANSP);
+    lv_style_set_bg_grad_opa(&s_topbar_fade_right, LV_OPA_COVER);
+    lv_style_set_border_width(&s_topbar_fade_right, 0);
 }
 
 void apply_root(lv_obj_t* obj)
@@ -75,6 +93,16 @@ void apply_topbar_title(lv_obj_t* obj)
 void apply_topbar_status(lv_obj_t* obj)
 {
     lv_obj_add_style(obj, &s_topbar_status, LV_PART_MAIN);
+}
+
+void apply_topbar_fade_left(lv_obj_t* obj)
+{
+    lv_obj_add_style(obj, &s_topbar_fade_left, LV_PART_MAIN);
+}
+
+void apply_topbar_fade_right(lv_obj_t* obj)
+{
+    lv_obj_add_style(obj, &s_topbar_fade_right, LV_PART_MAIN);
 }
 
 } // namespace lofi::ui::screens::common::styles
