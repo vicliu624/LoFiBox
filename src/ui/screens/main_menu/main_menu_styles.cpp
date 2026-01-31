@@ -23,8 +23,8 @@ void init_once()
     s_inited = true;
 
     lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
-    const lv_font_t* label_font = (w >= 360) ? &lv_font_montserrat_18 : &lv_font_montserrat_14;
-    const lv_font_t* arrow_font = (w >= 360) ? &lv_font_montserrat_18 : &lv_font_montserrat_14;
+    const lv_font_t* label_font = (w >= 360) ? &lv_font_source_han_sans_sc_16_cjk : &lv_font_source_han_sans_sc_14_cjk;
+    const lv_font_t* arrow_font = (w >= 360) ? &lv_font_source_han_sans_sc_16_cjk : &lv_font_source_han_sans_sc_14_cjk;
 
     lv_style_init(&s_content);
     lv_style_set_bg_color(&s_content, lv_color_hex(0x0b0b0b));

@@ -101,6 +101,7 @@ ListRowLayout create_list_row(lv_obj_t* list)
     refs.row = lv_btn_create(list);
     lv_obj_set_size(refs.row, LV_PCT(100), row_height());
     lv_obj_clear_flag(refs.row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(refs.row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_coord_t icon = icon_size();
     lv_coord_t left = pad_left();

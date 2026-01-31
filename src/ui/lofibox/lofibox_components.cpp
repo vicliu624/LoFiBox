@@ -673,6 +673,61 @@ void update_topbar(UiScreen& screen)
         update_battery(screen);
         return;
     }
+    if (screen.state.current == PageId::NowPlaying && screen.player && screen.library &&
+        screen.player->current_index >= 0 && screen.player->current_index < screen.library->track_count) {
+        const app::TrackInfo& track = screen.library->tracks[screen.player->current_index];
+        String left = String(LV_SYMBOL_LEFT) + " " + (track.title.length() ? track.title : String("Now Playing"));
+        lv_label_set_text(screen.view.root.top_left, left.c_str());
+
+        String center;
+        if (track.album.length() > 0 && track.genre.length() > 0) {
+            center = track.album + " / " + track.genre;
+        } else if (track.album.length() > 0) {
+            center = track.album;
+        } else if (track.genre.length() > 0) {
+            center = track.genre;
+        } else {
+            center = "";
+        }
+        lv_label_set_text(screen.view.root.top_title, center.c_str());
+
+        lv_label_set_long_mode(screen.view.root.top_left, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(screen.view.root.top_title, LV_LABEL_LONG_DOT);
+        lv_obj_set_style_text_align(screen.view.root.top_left, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+        lv_obj_set_style_text_align(screen.view.root.top_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
+        if (w <= 0) {
+            w = 480;
+        }
+        const lv_font_t* font_left = lv_obj_get_style_text_font(screen.view.root.top_left, LV_PART_MAIN);
+        if (font_left) {
+            lv_coord_t char_w = lv_font_get_glyph_width(font_left, 'W', 0);
+            if (char_w > 0) {
+                lv_obj_set_size(screen.view.root.top_left, char_w * 7, LV_SIZE_CONTENT);
+            } else {
+                lv_obj_set_size(screen.view.root.top_left, (w * 25) / 100, LV_SIZE_CONTENT);
+            }
+        } else {
+            lv_obj_set_size(screen.view.root.top_left, (w * 25) / 100, LV_SIZE_CONTENT);
+        }
+        const lv_font_t* font_title = lv_obj_get_style_text_font(screen.view.root.top_title, LV_PART_MAIN);
+        if (font_title) {
+            lv_coord_t char_w = lv_font_get_glyph_width(font_title, 'W', 0);
+            if (char_w > 0) {
+                lv_obj_set_size(screen.view.root.top_title, char_w * 18, LV_SIZE_CONTENT);
+            } else {
+                lv_obj_set_size(screen.view.root.top_title, (w * 45) / 100, LV_SIZE_CONTENT);
+            }
+        } else {
+            lv_obj_set_size(screen.view.root.top_title, (w * 45) / 100, LV_SIZE_CONTENT);
+        }
+
+        lv_obj_set_style_text_color(screen.view.root.top_left, lv_color_hex(0xf2f2f2), LV_PART_MAIN);
+        lv_obj_set_style_text_color(screen.view.root.top_title, lv_color_hex(0x8f949a), LV_PART_MAIN);
+
+        update_battery(screen);
+        return;
+    }
     if (screen.state.depth > 0) {
         lv_label_set_text(screen.view.root.top_left, LV_SYMBOL_LEFT " Back");
     } else {

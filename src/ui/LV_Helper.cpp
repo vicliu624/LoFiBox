@@ -220,13 +220,11 @@ void beginLvglHelper()
     lv_display_set_flush_cb(s_display, disp_flush);
     lv_tick_set_cb(lv_tick_get_callback);
 
-    if (board.hasKeyboard()) {
-        s_indev_keyboard = lv_indev_create();
-        lv_indev_set_type(s_indev_keyboard, LV_INDEV_TYPE_KEYPAD);
-        lv_indev_set_read_cb(s_indev_keyboard, keypad_read);
-        lv_indev_set_display(s_indev_keyboard, s_display);
-        lv_indev_set_group(s_indev_keyboard, lv_group_get_default());
-    }
+    s_indev_keyboard = lv_indev_create();
+    lv_indev_set_type(s_indev_keyboard, LV_INDEV_TYPE_KEYPAD);
+    lv_indev_set_read_cb(s_indev_keyboard, keypad_read);
+    lv_indev_set_display(s_indev_keyboard, s_display);
+    lv_indev_set_group(s_indev_keyboard, lv_group_get_default());
 
     s_last_input_ms = millis();
     s_saved_brightness = board.getBrightness();

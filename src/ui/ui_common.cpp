@@ -4,6 +4,12 @@
 
 void set_default_group(lv_group_t* group)
 {
+    if (!group) {
+        return;
+    }
+    lv_group_set_editing(group, false);
+    lv_group_set_wrap(group, true);
+    lv_group_set_refocus_policy(group, LV_GROUP_REFOCUS_POLICY_NEXT);
     lv_indev_t* cur_drv = nullptr;
     for (;;) {
         cur_drv = lv_indev_get_next(cur_drv);

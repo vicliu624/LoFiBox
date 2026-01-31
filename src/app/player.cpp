@@ -14,9 +14,9 @@ static Audio s_audio;
 static Library* s_library = nullptr;
 static PlayerState* s_state = nullptr;
 
-constexpr size_t kCoverScanMax = 4096;
+constexpr size_t kCoverScanMax = 16384;
 constexpr size_t kCoverChunkSize = 512;
-constexpr size_t kCoverMaxBytes = 256 * 1024;
+constexpr size_t kCoverMaxBytes = 512 * 1024;
 
 static bool match_sig(const uint8_t* buf, size_t len, const uint8_t* sig, size_t siglen)
 {

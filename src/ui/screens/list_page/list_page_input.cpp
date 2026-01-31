@@ -50,6 +50,18 @@ void row_event_cb(lv_event_t* e)
 
     if (code == LV_EVENT_KEY) {
         uint32_t key = lv_event_get_key(e);
+        if (key == LV_KEY_UP || key == LV_KEY_LEFT || key == LV_KEY_PREV) {
+            if (screen->group) {
+                lv_group_focus_prev(screen->group);
+            }
+            return;
+        }
+        if (key == LV_KEY_DOWN || key == LV_KEY_RIGHT || key == LV_KEY_NEXT) {
+            if (screen->group) {
+                lv_group_focus_next(screen->group);
+            }
+            return;
+        }
         if (key == LV_KEY_ESC || key == LV_KEY_BACKSPACE) {
             UiIntent intent{};
             intent.kind = UiIntentKind::NavigateBack;

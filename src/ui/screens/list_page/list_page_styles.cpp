@@ -22,8 +22,9 @@ void init_once()
     s_inited = true;
 
     lv_coord_t w = lv_display_get_horizontal_resolution(nullptr);
-    const lv_font_t* font_main = (w >= 360) ? &lv_font_montserrat_16 : &lv_font_montserrat_14;
-    const lv_font_t* font_right = (w >= 360) ? &lv_font_montserrat_14 : &lv_font_montserrat_12;
+    const lv_font_t* font_main = (w >= 360) ? &lv_font_source_han_sans_sc_16_cjk : &lv_font_source_han_sans_sc_14_cjk;
+    const lv_font_t* font_right =
+        (w >= 360) ? &lv_font_source_han_sans_sc_14_cjk : &lv_font_source_han_sans_sc_14_cjk;
 
     lv_style_init(&s_content);
     lv_style_set_bg_color(&s_content, lv_color_hex(0x101010));

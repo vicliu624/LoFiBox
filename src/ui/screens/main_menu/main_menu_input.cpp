@@ -32,7 +32,7 @@ void row_event_cb(lv_event_t* e)
 
     if (code == LV_EVENT_KEY) {
         uint32_t key = lv_event_get_key(e);
-        if (key == LV_KEY_UP || key == LV_KEY_LEFT) {
+        if (key == LV_KEY_UP || key == LV_KEY_LEFT || key == LV_KEY_PREV) {
             if (screen->items_count > 0) {
                 screen->state.menu_index--;
                 if (screen->state.menu_index < 0) {
@@ -42,7 +42,7 @@ void row_event_cb(lv_event_t* e)
             }
             return;
         }
-        if (key == LV_KEY_DOWN || key == LV_KEY_RIGHT) {
+        if (key == LV_KEY_DOWN || key == LV_KEY_RIGHT || key == LV_KEY_NEXT) {
             if (screen->items_count > 0) {
                 screen->state.menu_index++;
                 if (screen->state.menu_index >= screen->items_count) {

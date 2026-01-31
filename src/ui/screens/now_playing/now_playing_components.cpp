@@ -427,7 +427,7 @@ void update_cover(UiScreen& screen)
         (screen.player->cover_format != app::CoverFormat::Jpeg &&
          screen.player->cover_format != app::CoverFormat::Png &&
          screen.player->cover_format != app::CoverFormat::Bmp) ||
-        screen.player->cover_pos == 0 || screen.player->cover_len == 0 ||
+        screen.player->cover_len == 0 ||
         screen.player->current_index < 0 ||
         screen.player->current_index >= screen.library->track_count ||
         screen.player->cover_track_index != screen.player->current_index) {
@@ -504,6 +504,18 @@ void build(UiScreen& screen)
     styles::apply_key_sink(screen.view.now.key_sink);
 
     lv_label_set_text(screen.view.now.title, "No Track");
+    if (screen.view.now.title) {
+        lv_label_set_long_mode(screen.view.now.title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        const lv_font_t* font = lv_obj_get_style_text_font(screen.view.now.title, LV_PART_MAIN);
+        if (font) {
+            lv_coord_t char_w = lv_font_get_glyph_width(font, 'W', 0);
+            lv_coord_t max_w = char_w * 18;
+            lv_coord_t current_w = lv_obj_get_width(screen.view.now.title);
+            if (current_w == 0 || current_w > max_w) {
+                lv_obj_set_width(screen.view.now.title, max_w);
+            }
+        }
+    }
     lv_label_set_text(screen.view.now.artist, "");
     lv_label_set_text(screen.view.now.album, "");
     lv_label_set_text(screen.view.now.time_left, "--:--");
@@ -588,12 +600,19 @@ void update(UiScreen& screen)
         }
     }
     lv_bar_set_value(screen.view.now.bar, percent, LV_ANIM_OFF);
+    lv_coord_t bar_w = lv_obj_get_width(screen.view.now.bar);
+    if (bar_w < 1) {
+        bar_w = screen.view.now.bar_width;
+    }
     lv_coord_t knob_w = lv_obj_get_width(screen.view.now.knob);
     if (knob_w < 1) {
         knob_w = 4;
     }
-    lv_coord_t knob_x = (screen.view.now.bar_width - knob_w) * percent / 100;
-    lv_obj_align(screen.view.now.knob, LV_ALIGN_LEFT_MID, knob_x, 0);
+    lv_coord_t knob_x = (bar_w - knob_w) * percent / 100;
+    if (percent >= 100) {
+        knob_x = bar_w - knob_w;
+    }
+    lv_obj_align_to(screen.view.now.knob, screen.view.now.bar, LV_ALIGN_LEFT_MID, knob_x, 0);
 
     bool paused = screen.player ? screen.player->paused : false;
     lv_label_set_text(screen.view.now.ctrl_play, paused ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);

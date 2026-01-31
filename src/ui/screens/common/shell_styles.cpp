@@ -39,11 +39,11 @@ void init_once()
     lv_style_set_radius(&s_topbar, 0);
 
     lv_style_init(&s_topbar_label);
-    lv_style_set_text_font(&s_topbar_label, &lv_font_montserrat_14);
+    lv_style_set_text_font(&s_topbar_label, &lv_font_source_han_sans_sc_14_cjk);
     lv_style_set_text_color(&s_topbar_label, lv_color_hex(0xe6e6e6));
 
     lv_style_init(&s_topbar_title);
-    lv_style_set_text_font(&s_topbar_title, &lv_font_montserrat_16);
+    lv_style_set_text_font(&s_topbar_title, &lv_font_source_han_sans_sc_16_cjk);
     lv_style_set_text_color(&s_topbar_title, lv_color_hex(0xf2f2f2));
 
     lv_style_init(&s_topbar_status);
