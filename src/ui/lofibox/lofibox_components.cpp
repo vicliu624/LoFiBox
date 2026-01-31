@@ -1,63 +1,14 @@
 #include "ui/lofibox/lofibox_components.h"
 
 #include "board/BoardBase.h"
-#include "ui/screens/about/about_components.h"
-#include "ui/screens/about/about_input.h"
-#include "ui/screens/about/about_layout.h"
-#include "ui/screens/about/about_styles.h"
-#include "ui/screens/albums/albums_components.h"
-#include "ui/screens/albums/albums_input.h"
-#include "ui/screens/albums/albums_layout.h"
-#include "ui/screens/albums/albums_styles.h"
-#include "ui/screens/artists/artists_components.h"
-#include "ui/screens/artists/artists_input.h"
-#include "ui/screens/artists/artists_layout.h"
-#include "ui/screens/artists/artists_styles.h"
 #include "ui/screens/common/shell_layout.h"
 #include "ui/screens/common/shell_styles.h"
-#include "ui/screens/compilations/compilations_components.h"
-#include "ui/screens/compilations/compilations_input.h"
-#include "ui/screens/compilations/compilations_layout.h"
-#include "ui/screens/compilations/compilations_styles.h"
-#include "ui/screens/composers/composers_components.h"
-#include "ui/screens/composers/composers_input.h"
-#include "ui/screens/composers/composers_layout.h"
-#include "ui/screens/composers/composers_styles.h"
-#include "ui/screens/eq/eq_components.h"
-#include "ui/screens/eq/eq_input.h"
-#include "ui/screens/eq/eq_layout.h"
-#include "ui/screens/eq/eq_styles.h"
-#include "ui/screens/genres/genres_components.h"
-#include "ui/screens/genres/genres_input.h"
-#include "ui/screens/genres/genres_layout.h"
-#include "ui/screens/genres/genres_styles.h"
-#include "ui/screens/list_page/list_page_layout.h"
-#include "ui/screens/list_page/list_page_input.h"
+#include "ui/screens/list_page/list_page_build.h"
 #include "ui/screens/main_menu/main_menu_components.h"
 #include "ui/screens/main_menu/main_menu_input.h"
 #include "ui/screens/main_menu/main_menu_layout.h"
 #include "ui/screens/main_menu/main_menu_styles.h"
-#include "ui/screens/music/music_components.h"
-#include "ui/screens/music/music_input.h"
-#include "ui/screens/music/music_layout.h"
-#include "ui/screens/music/music_styles.h"
 #include "ui/screens/now_playing/now_playing_components.h"
-#include "ui/screens/playlist_detail/playlist_detail_components.h"
-#include "ui/screens/playlist_detail/playlist_detail_input.h"
-#include "ui/screens/playlist_detail/playlist_detail_layout.h"
-#include "ui/screens/playlist_detail/playlist_detail_styles.h"
-#include "ui/screens/playlists/playlists_components.h"
-#include "ui/screens/playlists/playlists_input.h"
-#include "ui/screens/playlists/playlists_layout.h"
-#include "ui/screens/playlists/playlists_styles.h"
-#include "ui/screens/settings/settings_components.h"
-#include "ui/screens/settings/settings_input.h"
-#include "ui/screens/settings/settings_layout.h"
-#include "ui/screens/settings/settings_styles.h"
-#include "ui/screens/songs/songs_components.h"
-#include "ui/screens/songs/songs_input.h"
-#include "ui/screens/songs/songs_layout.h"
-#include "ui/screens/songs/songs_styles.h"
 #include "ui/ui_common.h"
 #include "ui/common/text_utils.h"
 #include "app/library.h"
@@ -68,101 +19,7 @@ namespace
 {
 namespace shell_layout = screens::common::layout;
 namespace shell_styles = screens::common::styles;
-namespace list_layout = screens::list_page::layout;
-
-bool page_needs_library(PageId id)
-{
-    switch (id) {
-    case PageId::Music:
-    case PageId::Artists:
-    case PageId::Albums:
-    case PageId::Songs:
-    case PageId::Genres:
-    case PageId::Composers:
-    case PageId::Compilations:
-    case PageId::Playlists:
-    case PageId::PlaylistDetail:
-        return true;
-    default:
-        return false;
-    }
-}
-
-
-
-
-struct ListPageApi
-{
-    void (*init_styles)() = nullptr;
-    void (*apply_content)(lv_obj_t*) = nullptr;
-    void (*apply_list)(lv_obj_t*) = nullptr;
-    void (*apply_row)(lv_obj_t*) = nullptr;
-    void (*apply_left)(lv_obj_t*) = nullptr;
-    void (*apply_right)(lv_obj_t*) = nullptr;
-    list_layout::ListLayout (*create_list)(lv_obj_t*) = nullptr;
-    list_layout::ListRowLayout (*create_row)(lv_obj_t*) = nullptr;
-    void (*attach_row)(UiScreen&, RowMeta&) = nullptr;
-    void (*focus_first)(lv_group_t*, lv_obj_t*) = nullptr;
-};
-
-inline ListPageApi make_list_api(void (*init_styles)(), void (*apply_content)(lv_obj_t*), void (*apply_list)(lv_obj_t*),
-                                 void (*apply_row)(lv_obj_t*), void (*apply_left)(lv_obj_t*),
-                                 void (*apply_right)(lv_obj_t*), list_layout::ListLayout (*create_list)(lv_obj_t*),
-                                 list_layout::ListRowLayout (*create_row)(lv_obj_t*),
-                                 void (*attach_row)(UiScreen&, RowMeta&), void (*focus_first)(lv_group_t*, lv_obj_t*))
-{
-    ListPageApi api{};
-    api.init_styles = init_styles;
-    api.apply_content = apply_content;
-    api.apply_list = apply_list;
-    api.apply_row = apply_row;
-    api.apply_left = apply_left;
-    api.apply_right = apply_right;
-    api.create_list = create_list;
-    api.create_row = create_row;
-    api.attach_row = attach_row;
-    api.focus_first = focus_first;
-    return api;
-}
-
-#define LIST_API(NS)                                                                                                   \
-    make_list_api(NS::styles::init_once, NS::styles::apply_content, NS::styles::apply_list, NS::styles::apply_list_row, \
-                  NS::styles::apply_list_label_left, NS::styles::apply_list_label_right, NS::layout::create_list,      \
-                  NS::layout::create_list_row, NS::input::attach_row, NS::input::focus_first)
-
-ListPageApi list_api_for(PageId id)
-{
-    switch (id) {
-    case PageId::Music:
-        return LIST_API(screens::music);
-    case PageId::Artists:
-        return LIST_API(screens::artists);
-    case PageId::Albums:
-        return LIST_API(screens::albums);
-    case PageId::Songs:
-        return LIST_API(screens::songs);
-    case PageId::Genres:
-        return LIST_API(screens::genres);
-    case PageId::Composers:
-        return LIST_API(screens::composers);
-    case PageId::Compilations:
-        return LIST_API(screens::compilations);
-    case PageId::Playlists:
-        return LIST_API(screens::playlists);
-    case PageId::PlaylistDetail:
-        return LIST_API(screens::playlist_detail);
-    case PageId::Settings:
-        return LIST_API(screens::settings);
-    case PageId::Eq:
-        return LIST_API(screens::eq);
-    case PageId::About:
-        return LIST_API(screens::about);
-    default:
-        return LIST_API(screens::music);
-    }
-}
-
-#undef LIST_API
+using ListPageApi = screens::list_page::BuildApi;
 
 static const char* kPlaylistNames[] = {
     "On-The-Go",
@@ -246,14 +103,6 @@ const char* current_page_title(const UiScreen& screen)
     return page_title(screen.state.current);
 }
 
-char lower_char(char c)
-{
-    if (c >= 'A' && c <= 'Z') {
-        return static_cast<char>(c + ('a' - 'A'));
-    }
-    return c;
-}
-
 void update_battery(UiScreen& screen)
 {
     if (!screen.view.root.top_battery) {
@@ -276,6 +125,12 @@ void play_track(UiScreen& screen, int track_index)
         return;
     }
 
+    const app::TrackInfo& track = screen.library->tracks[track_index];
+    Serial.printf("[UI] play_track idx=%d title=\"%s\" artist=\"%s\" album=\"%s\"\n",
+                  track_index,
+                  track.title ? track.title : "",
+                  track.artist ? track.artist : "",
+                  track.album ? track.album : "");
     app::player_play(*screen.player, track_index);
     screen.state.last_track_index = -2;
 
@@ -355,231 +210,6 @@ ListItem* add_item(UiScreen& screen, const String& left, const String& right, Ui
     return &item;
 }
 
-int compare_ci(const char* a, const char* b)
-{
-    String sa = a ? a : "";
-    String sb = b ? b : "";
-    size_t la = sa.length();
-    size_t lb = sb.length();
-    size_t l = (la < lb) ? la : lb;
-    for (size_t i = 0; i < l; ++i) {
-        char ca = lower_char(sa[i]);
-        char cb = lower_char(sb[i]);
-        if (ca < cb) {
-            return -1;
-        }
-        if (ca > cb) {
-            return 1;
-        }
-    }
-    if (la == lb) {
-        return 0;
-    }
-    return (la < lb) ? -1 : 1;
-}
-
-void sort_string_indices(const char* const* arr, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            if (compare_ci(arr[idx[j]], arr[idx[i]]) < 0) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-
-void sort_album_indices(const app::Library& lib, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            const app::AlbumInfo& a = lib.albums[idx[j]];
-            const app::AlbumInfo& b = lib.albums[idx[i]];
-            int c = compare_ci(a.name, b.name);
-            if (c == 0) {
-                c = compare_ci(a.artist, b.artist);
-            }
-            if (c < 0) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-void sort_track_indices_by_title(const app::Library& lib, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            const app::TrackInfo& a = lib.tracks[idx[j]];
-            const app::TrackInfo& b = lib.tracks[idx[i]];
-            int c = compare_ci(a.title, b.title);
-            if (c == 0) {
-                c = compare_ci(a.artist, b.artist);
-            }
-            if (c < 0) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-void sort_tracks_by_added(const app::Library& lib, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            const app::TrackInfo& a = lib.tracks[idx[j]];
-            const app::TrackInfo& b = lib.tracks[idx[i]];
-            if (a.added_time > b.added_time) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-void sort_tracks_by_play_count(const app::Library& lib, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            const app::TrackInfo& a = lib.tracks[idx[j]];
-            const app::TrackInfo& b = lib.tracks[idx[i]];
-            if (a.play_count > b.play_count) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-void sort_tracks_by_last_played(const app::Library& lib, int* idx, int count)
-{
-    for (int i = 0; i < count - 1; ++i) {
-        for (int j = i + 1; j < count; ++j) {
-            const app::TrackInfo& a = lib.tracks[idx[j]];
-            const app::TrackInfo& b = lib.tracks[idx[i]];
-            if (a.last_played > b.last_played) {
-                int tmp = idx[i];
-                idx[i] = idx[j];
-                idx[j] = tmp;
-            }
-        }
-    }
-}
-
-static void populate_list_for_page(UiScreen& screen)
-{
-    switch (screen.state.current) {
-    case PageId::MainMenu:
-        screens::main_menu::populate(screen);
-        break;
-    case PageId::Music:
-        screens::music::populate(screen);
-        break;
-    case PageId::Artists:
-        screens::artists::populate(screen);
-        break;
-    case PageId::Albums:
-        screens::albums::populate(screen);
-        break;
-    case PageId::Songs:
-        screens::songs::populate(screen);
-        break;
-    case PageId::Genres:
-        screens::genres::populate(screen);
-        break;
-    case PageId::Composers:
-        screens::composers::populate(screen);
-        break;
-    case PageId::Compilations:
-        screens::compilations::populate(screen);
-        break;
-    case PageId::Playlists:
-        screens::playlists::populate(screen);
-        break;
-    case PageId::PlaylistDetail:
-        screens::playlist_detail::populate(screen);
-        break;
-    case PageId::Settings:
-        screens::settings::populate(screen);
-        break;
-    case PageId::Eq:
-        screens::eq::populate(screen);
-        break;
-    case PageId::About:
-        screens::about::populate(screen);
-        break;
-    default:
-        reset_items(screen);
-        break;
-    }
-}
-
-static void build_list_page(UiScreen& screen)
-{
-    // Refresh strategy: list rows are rebuilt each time the page is built.
-    ListPageApi api = list_api_for(screen.state.current);
-    api.init_styles();
-    api.apply_content(screen.view.root.content);
-    screen.view.list = api.create_list(screen.view.root.content);
-    api.apply_list(screen.view.list.list);
-    if (screen.view.list.list) {
-        lv_obj_clear_flag(screen.view.list.list, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_scroll_dir(screen.view.list.list, LV_DIR_NONE);
-    }
-    if (screen.view.root.content) {
-        lv_obj_update_layout(screen.view.root.content);
-    }
-    if (screen.view.list.list) {
-        lv_obj_update_layout(screen.view.list.list);
-    }
-
-    screen.row_count = 0;
-    populate_list_for_page(screen);
-
-    lv_coord_t list_h = screen.view.list.list ? lv_obj_get_height(screen.view.list.list)
-                                              : lv_obj_get_height(screen.view.root.content);
-    if (list_h <= 0) {
-        lv_coord_t full_h = lv_display_get_vertical_resolution(nullptr);
-        lv_coord_t top_h = screens::common::layout::topbar_height();
-        list_h = (full_h > top_h) ? (full_h - top_h) : full_h;
-    }
-    lv_coord_t row_h = list_layout::row_height();
-    int visible = (row_h > 0) ? static_cast<int>(list_h / row_h) : 0;
-    if (visible < 1) {
-        visible = 1;
-    }
-    if (visible > screen.items_count) {
-        visible = screen.items_count;
-    }
-
-    for (int i = 0; i < visible; ++i) {
-        list_layout::ListRowLayout row_layout = api.create_row(screen.view.list.list);
-        api.apply_row(row_layout.row);
-        api.apply_left(row_layout.left_label);
-        api.apply_right(row_layout.right_label);
-
-        RowMeta& meta = screen.rows[screen.row_count++];
-        meta.row = row_layout.row;
-        meta.icon = row_layout.icon;
-        meta.left_label = row_layout.left_label;
-        meta.right_label = row_layout.right_label;
-        api.attach_row(screen, meta);
-    }
-
-    screen.state.list_offset = 0;
-    screen.state.list_selected = 0;
-    screens::list_page::input::refresh_rows(screen);
-}
-
 static void build_main_menu(UiScreen& screen)
 {
     screens::main_menu::styles::init_once();
@@ -591,7 +221,7 @@ static void build_main_menu(UiScreen& screen)
     screen.view.list = {};
     screen.view.menu = {};
     screen.row_count = 0;
-    populate_list_for_page(screen);
+    screens::main_menu::populate(screen);
 
     screens::main_menu::layout::MenuLayout layout =
         screens::main_menu::layout::create_menu(screen.view.root.content);
@@ -1054,7 +684,9 @@ void build_page(UiScreen& screen)
     } else if (screen.state.current == PageId::MainMenu) {
         build_main_menu(screen);
     } else {
-        build_list_page(screen);
+        screens::list_page::populate_list(screen);
+        ListPageApi api = screens::list_page::api_for(screen.state.current);
+        screens::list_page::build_list_page(screen, api);
     }
 
     update_now_playing(screen);

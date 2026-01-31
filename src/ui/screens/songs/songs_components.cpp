@@ -1,4 +1,5 @@
 #include "ui/screens/songs/songs_components.h"
+#include "ui/common/sort_utils.h"
 
 namespace lofi::ui::screens::songs
 {
@@ -41,7 +42,20 @@ void populate(UiScreen& screen)
         return;
     }
 
-    components::sort_track_indices_by_title(*screen.library, idx, count);
+    sort::track_indices_by_title(*screen.library, idx, count);
+
+    bool has_zero = false;
+    for (int i = 0; i < count; ++i) {
+        if (idx[i] == 0) {
+            has_zero = true;
+            break;
+        }
+    }
+    Serial.printf("[SONGS] context=%d count=%d has_idx0=%d first=\"%s\"\n",
+                  static_cast<int>(screen.state.song_context),
+                  count,
+                  has_zero ? 1 : 0,
+                  (count > 0 && screen.library->tracks[idx[0]].title) ? screen.library->tracks[idx[0]].title : "");
 
     for (int i = 0; i < count; ++i) {
         const app::TrackInfo& track = screen.library->tracks[idx[i]];

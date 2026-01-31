@@ -688,6 +688,7 @@ void update(UiScreen& screen)
             lv_label_set_text(screen.view.now.artist, safe_artist.c_str());
             lv_label_set_text(screen.view.now.album, safe_album.c_str());
         } else {
+            Serial.printf("[NOW] no track idx=%d count=%d\n", idx, screen.library ? screen.library->track_count : -1);
             lv_label_set_text(screen.view.now.title, "No Track");
             lv_label_set_text(screen.view.now.artist, "");
             lv_label_set_text(screen.view.now.album, "");

@@ -27,12 +27,12 @@ namespace
 {
 constexpr lv_coord_t kBaseScreenHeight = 222;
 constexpr lv_coord_t kBaseScreenWidth = 480;
-constexpr lv_coord_t kBaseRowHeight = 26;
+constexpr lv_coord_t kBaseRowHeight = 24;
 constexpr lv_coord_t kBaseIconSize = 18;
 constexpr lv_coord_t kBasePadLeft = 14;
-constexpr lv_coord_t kBasePadRight = 12;
+constexpr lv_coord_t kBasePadRight = 8;
 constexpr lv_coord_t kBaseIconGap = 8;
-constexpr lv_coord_t kMinRowHeight = 18;
+constexpr lv_coord_t kMinRowHeight = 16;
 constexpr lv_coord_t kMinIconSize = 12;
 
 lv_coord_t scale_h(lv_coord_t value)

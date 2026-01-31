@@ -1,4 +1,5 @@
 #include "ui/screens/playlist_detail/playlist_detail_components.h"
+#include "ui/common/sort_utils.h"
 
 namespace lofi::ui::screens::playlist_detail
 {
@@ -24,13 +25,13 @@ int build_playlist_tracks(UiScreen& screen)
 
     switch (screen.state.current_playlist) {
     case 1:
-        components::sort_tracks_by_added(*screen.library, screen.playlist_tracks, screen.playlist_count);
+        sort::tracks_by_added(*screen.library, screen.playlist_tracks, screen.playlist_count);
         break;
     case 2:
-        components::sort_tracks_by_play_count(*screen.library, screen.playlist_tracks, screen.playlist_count);
+        sort::tracks_by_play_count(*screen.library, screen.playlist_tracks, screen.playlist_count);
         break;
     case 3:
-        components::sort_tracks_by_last_played(*screen.library, screen.playlist_tracks, screen.playlist_count);
+        sort::tracks_by_last_played(*screen.library, screen.playlist_tracks, screen.playlist_count);
         break;
     default:
         break;

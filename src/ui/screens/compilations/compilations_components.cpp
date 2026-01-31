@@ -1,4 +1,5 @@
 #include "ui/screens/compilations/compilations_components.h"
+#include "ui/common/sort_utils.h"
 #include <cstring>
 
 namespace lofi::ui::screens::compilations
@@ -49,7 +50,7 @@ void populate(UiScreen& screen)
     for (int i = 0; i < name_count; ++i) {
         idx[i] = i;
     }
-    components::sort_string_indices(names, idx, name_count);
+    sort::string_indices(names, idx, name_count);
     for (int i = 0; i < name_count; ++i) {
         components::add_item(screen, names[idx[i]], "", UiIntentKind::OpenAlbum, PageId::Songs);
     }

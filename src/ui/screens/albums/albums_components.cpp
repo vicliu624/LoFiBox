@@ -1,4 +1,5 @@
 #include "ui/screens/albums/albums_components.h"
+#include "ui/common/sort_utils.h"
 
 namespace lofi::ui::screens::albums
 {
@@ -19,7 +20,7 @@ void populate(UiScreen& screen)
             idx[count++] = i;
         }
     }
-    components::sort_album_indices(*screen.library, idx, count);
+    sort::album_indices(*screen.library, idx, count);
 
     for (int i = 0; i < count; ++i) {
         const app::AlbumInfo& album = screen.library->albums[idx[i]];

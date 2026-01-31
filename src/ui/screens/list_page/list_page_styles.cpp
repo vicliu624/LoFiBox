@@ -46,9 +46,9 @@ void init_once()
     lv_style_set_outline_width(&s_list, 0);
     lv_style_set_outline_opa(&s_list, LV_OPA_0);
     lv_style_set_pad_left(&s_list, (w >= 360) ? 12 : 8);
-    lv_style_set_pad_right(&s_list, (w >= 360) ? 10 : 6);
-    lv_style_set_pad_top(&s_list, 4);
-    lv_style_set_pad_bottom(&s_list, 4);
+    lv_style_set_pad_right(&s_list, (w >= 360) ? 8 : 4);
+    lv_style_set_pad_top(&s_list, 2);
+    lv_style_set_pad_bottom(&s_list, 2);
 
     lv_style_init(&s_row);
     lv_style_set_radius(&s_row, 0);
@@ -74,6 +74,7 @@ void init_once()
     lv_style_init(&s_label_right);
     lv_style_set_text_font(&s_label_right, font_right);
     lv_style_set_text_color(&s_label_right, lv_color_hex(0xcfcfcf));
+    lv_style_set_text_align(&s_label_right, LV_TEXT_ALIGN_RIGHT);
 
     lv_style_init(&s_label_checked);
     lv_style_set_text_color(&s_label_checked, lv_color_hex(0xffffff));

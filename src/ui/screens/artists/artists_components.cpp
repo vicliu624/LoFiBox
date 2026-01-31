@@ -1,4 +1,5 @@
 #include "ui/screens/artists/artists_components.h"
+#include "ui/common/sort_utils.h"
 
 namespace lofi::ui::screens::artists
 {
@@ -14,7 +15,7 @@ void populate(UiScreen& screen)
     for (int i = 0; i < screen.library->artist_count; ++i) {
         idx[i] = i;
     }
-    components::sort_string_indices(screen.library->artists, idx, screen.library->artist_count);
+    sort::string_indices(screen.library->artists, idx, screen.library->artist_count);
 
     for (int i = 0; i < screen.library->artist_count; ++i) {
         components::add_item(screen, screen.library->artists[idx[i]], "", UiIntentKind::OpenArtist, PageId::Albums, idx[i]);

@@ -30,12 +30,4 @@ ListItem* add_item(UiScreen& screen, const char* left, const char* right, UiInte
 ListItem* add_item(UiScreen& screen, const String& left, const String& right, UiIntentKind action, PageId next,
                    int value = 0, int value2 = 0, const lv_image_dsc_t* icon = nullptr);
 
-int compare_ci(const char* a, const char* b);
-void sort_string_indices(const char* const* arr, int* idx, int count);
-void sort_album_indices(const app::Library& lib, int* idx, int count);
-void sort_track_indices_by_title(const app::Library& lib, int* idx, int count);
-void sort_tracks_by_added(const app::Library& lib, int* idx, int count);
-void sort_tracks_by_play_count(const app::Library& lib, int* idx, int count);
-void sort_tracks_by_last_played(const app::Library& lib, int* idx, int count);
-
 } // namespace lofi::ui::components

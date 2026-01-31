@@ -127,6 +127,8 @@ int8_t read_rotary_step()
 {
     static uint8_t last_state = 0;
     static int8_t accum = 0;
+    static uint32_t last_step_ms = 0;
+    static int8_t last_dir = 0;
     const uint8_t a = digitalRead(ROTARY_A) ? 1 : 0;
     const uint8_t b = digitalRead(ROTARY_B) ? 1 : 0;
     const uint8_t state = static_cast<uint8_t>((a << 1) | b);
@@ -145,11 +147,25 @@ int8_t read_rotary_step()
 
     if (accum >= 2) {
         accum = 0;
-        return 1;
+        int8_t dir = 1;
+        uint32_t now = millis();
+        if (last_dir != 0 && dir != last_dir && (now - last_step_ms) < 80) {
+            return 0;
+        }
+        last_step_ms = now;
+        last_dir = dir;
+        return dir;
     }
     if (accum <= -2) {
         accum = 0;
-        return -1;
+        int8_t dir = -1;
+        uint32_t now = millis();
+        if (last_dir != 0 && dir != last_dir && (now - last_step_ms) < 80) {
+            return 0;
+        }
+        last_step_ms = now;
+        last_dir = dir;
+        return dir;
     }
     return 0;
 }
