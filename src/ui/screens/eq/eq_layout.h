@@ -1,14 +1,24 @@
 #pragma once
 
-#include "ui/screens/list_page/list_page_layout.h"
+#include <lvgl.h>
 
 namespace lofi::ui::screens::eq::layout
 {
-using ListLayout = ::lofi::ui::screens::list_page::layout::ListLayout;
-using ListRowLayout = ::lofi::ui::screens::list_page::layout::ListRowLayout;
+struct EqLayout
+{
+    lv_obj_t* panel = nullptr;
+    lv_obj_t* graph = nullptr;
+    lv_obj_t* slider_cols[6] = {};
+    lv_obj_t* sliders[6] = {};
+    lv_obj_t* labels[12] = {};
+    lv_obj_t* db_top = nullptr;
+    lv_obj_t* db_mid = nullptr;
+    lv_obj_t* db_bottom = nullptr;
+    lv_obj_t* preset = nullptr;
+    lv_obj_t* preset_value = nullptr;
+    lv_obj_t* key_sink = nullptr;
+};
 
-lv_coord_t row_height();
-ListLayout create_list(lv_obj_t* content);
-ListRowLayout create_list_row(lv_obj_t* list);
+EqLayout create(lv_obj_t* content);
 
 } // namespace lofi::ui::screens::eq::layout

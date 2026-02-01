@@ -40,5 +40,8 @@ void player_prev(PlayerState& state);
 
 uint32_t player_current_time();
 uint32_t player_duration();
+uint32_t player_sample_rate();
+uint8_t player_channels();
+uint8_t player_bits_per_sample();
 
 } // namespace app

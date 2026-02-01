@@ -3,6 +3,7 @@
 
 #include "app/library.h"
 #include "app/player.h"
+#include "app/eq_dsp.h"
 #include "board/BoardBase.h"
 #include "ui/LV_Helper.h"
 #include "ui/assets/assets.h"
@@ -66,6 +67,7 @@ void setup()
     randomSeed(micros());
 
     app::library_reset(s_library);
+    app::eq::init();
     show_boot_screen();
     const uint32_t boot_start = millis();
     app::library_scan(s_library, SD, "/music", 8, app::kMaxTracks, true, boot_tick);

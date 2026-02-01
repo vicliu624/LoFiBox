@@ -3,6 +3,7 @@
 #include "board/BoardBase.h"
 #include "ui/screens/common/shell_layout.h"
 #include "ui/screens/common/shell_styles.h"
+#include "ui/screens/eq/eq_components.h"
 #include "ui/screens/list_page/list_page_build.h"
 #include "ui/screens/main_menu/main_menu_components.h"
 #include "ui/screens/main_menu/main_menu_input.h"
@@ -683,6 +684,8 @@ void build_page(UiScreen& screen)
         screens::now_playing::build(screen);
     } else if (screen.state.current == PageId::MainMenu) {
         build_main_menu(screen);
+    } else if (screen.state.current == PageId::Eq) {
+        screens::eq::build(screen);
     } else {
         screens::list_page::populate_list(screen);
         ListPageApi api = screens::list_page::api_for(screen.state.current);

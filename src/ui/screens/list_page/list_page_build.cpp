@@ -20,10 +20,6 @@
 #include "ui/screens/composers/composers_input.h"
 #include "ui/screens/composers/composers_layout.h"
 #include "ui/screens/composers/composers_styles.h"
-#include "ui/screens/eq/eq_components.h"
-#include "ui/screens/eq/eq_input.h"
-#include "ui/screens/eq/eq_layout.h"
-#include "ui/screens/eq/eq_styles.h"
 #include "ui/screens/genres/genres_components.h"
 #include "ui/screens/genres/genres_input.h"
 #include "ui/screens/genres/genres_layout.h"
@@ -152,12 +148,6 @@ BuildApi api_for(PageId id)
                              screens::settings::styles::apply_list_label_right, screens::settings::layout::create_list,
                              screens::settings::layout::create_list_row, screens::settings::input::attach_row,
                              screens::settings::input::focus_first);
-    case PageId::Eq:
-        return make_list_api(screens::eq::styles::init_once, screens::eq::styles::apply_content,
-                             screens::eq::styles::apply_list, screens::eq::styles::apply_list_row,
-                             screens::eq::styles::apply_list_label_left, screens::eq::styles::apply_list_label_right,
-                             screens::eq::layout::create_list, screens::eq::layout::create_list_row,
-                             screens::eq::input::attach_row, screens::eq::input::focus_first);
     case PageId::About:
         return make_list_api(screens::about::styles::init_once, screens::about::styles::apply_content,
                              screens::about::styles::apply_list, screens::about::styles::apply_list_row,
@@ -206,9 +196,6 @@ void populate_list(UiScreen& screen)
         break;
     case PageId::Settings:
         screens::settings::populate(screen);
-        break;
-    case PageId::Eq:
-        screens::eq::populate(screen);
         break;
     case PageId::About:
         screens::about::populate(screen);

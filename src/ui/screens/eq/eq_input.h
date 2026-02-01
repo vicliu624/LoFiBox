@@ -4,7 +4,6 @@
 
 namespace lofi::ui::screens::eq::input
 {
-void attach_row(UiScreen& screen, RowMeta& meta);
-void focus_first(lv_group_t* group, lv_obj_t* first);
+void attach(UiScreen& screen, lv_obj_t* key_sink);
 
 } // namespace lofi::ui::screens::eq::input

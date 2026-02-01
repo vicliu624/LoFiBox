@@ -4,6 +4,7 @@
 
 namespace lofi::ui::screens::eq
 {
-void populate(UiScreen& screen);
+void build(UiScreen& screen);
+void update(UiScreen& screen);
 
 } // namespace lofi::ui::screens::eq

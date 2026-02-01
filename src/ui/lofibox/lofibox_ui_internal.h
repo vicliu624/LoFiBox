@@ -6,6 +6,7 @@
 #include "app/library.h"
 #include "app/player.h"
 #include "ui/screens/common/shell_layout.h"
+#include "ui/screens/eq/eq_layout.h"
 #include "ui/screens/list_page/list_page_layout.h"
 #include "ui/screens/main_menu/main_menu_layout.h"
 #include "ui/screens/now_playing/now_playing_layout.h"
@@ -147,6 +148,7 @@ struct UiState
     uint32_t last_cover_version = 0;
     int list_offset = 0;
     int list_selected = 0;
+    int eq_selected_band = 0;
 };
 
 struct UiView
@@ -155,6 +157,7 @@ struct UiView
     screens::list_page::layout::ListLayout list{};
     screens::now_playing::layout::NowPlayingLayout now{};
     screens::main_menu::layout::MenuLayout menu{};
+    screens::eq::layout::EqLayout eq{};
 };
 
 struct UiScreen

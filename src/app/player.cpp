@@ -382,6 +382,21 @@ uint32_t player_duration()
     return s_audio.getAudioFileDuration();
 }
 
+uint32_t player_sample_rate()
+{
+    return s_audio.getSampleRate();
+}
+
+uint8_t player_channels()
+{
+    return s_audio.getChannels();
+}
+
+uint8_t player_bits_per_sample()
+{
+    return s_audio.getBitsPerSample();
+}
+
 } // namespace app
 
 void audio_info(const char* info)
