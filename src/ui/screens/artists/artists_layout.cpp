@@ -22,21 +22,15 @@
 //    +- row
 //    +- ...
 
-namespace lofi::ui::screens::artists::layout
-{
-lv_coord_t row_height()
-{
-    return list_page::layout::row_height();
+namespace lofi::ui::screens::artists::layout {
+lv_coord_t row_height() { return list_page::layout::row_height(); }
+
+ListLayout create_list(lv_obj_t *content) {
+  return list_page::layout::create_list(content);
 }
 
-ListLayout create_list(lv_obj_t* content)
-{
-    return list_page::layout::create_list(content);
-}
-
-ListRowLayout create_list_row(lv_obj_t* list)
-{
-    return list_page::layout::create_list_row(list);
+ListRowLayout create_list_row(lv_obj_t *list) {
+  return list_page::layout::create_list_row(list);
 }
 
 } // namespace lofi::ui::screens::artists::layout

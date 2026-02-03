@@ -2,21 +2,18 @@
 
 #include <cstdint>
 
-namespace display
-{
+namespace display {
 
-struct ScreenSize
-{
-    int width;
-    int height;
+struct ScreenSize {
+  int width;
+  int height;
 };
 
-inline ScreenSize screen_size()
-{
+inline ScreenSize screen_size() {
 #if defined(SCREEN_WIDTH) && defined(SCREEN_HEIGHT)
-    return {SCREEN_WIDTH, SCREEN_HEIGHT};
+  return {SCREEN_WIDTH, SCREEN_HEIGHT};
 #else
-    return {0, 0};
+  return {0, 0};
 #endif
 }
 

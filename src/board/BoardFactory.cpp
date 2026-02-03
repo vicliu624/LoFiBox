@@ -10,4 +10,4 @@ static CardputerBoard board_instance;
 #error "No board selected. Define BOARD_TLORA_PAGER or BOARD_CARDPUTER_ADV"
 #endif
 
-BoardBase& board = board_instance;
+BoardBase &board = board_instance;

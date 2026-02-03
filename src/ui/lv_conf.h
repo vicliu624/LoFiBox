@@ -104,6 +104,7 @@
 #define LV_USE_LODEPNG 0
 #define LV_USE_LIBPNG 0
 #define LV_USE_TJPGD 1
+#define LV_USE_SNAPSHOT 1
 
 #endif
 #endif
