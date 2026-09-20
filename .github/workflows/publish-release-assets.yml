@@ -1,0 +1,56 @@
+name: Publish Release Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub Release tag to receive the firmware files
+        required: true
+        default: v0.2.0-beta.1
+        type: string
+      source_ref:
+        description: Ref to build (normally main)
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-firmware:
+    name: Build and attach device firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio
+
+      - name: Build LilyGo T-LoRa Pager firmware
+        run: pio run -e tlora_pager
+
+      - name: Build M5Stack Core2 Audio/Faces firmware
+        run: pio run -e core2_audio_faces
+
+      - name: Name release assets by target device
+        run: |
+          mkdir -p release-assets
+          cp .pio/build/tlora_pager/firmware.bin \
+            release-assets/LoFiBox-${{ inputs.tag }}-LilyGo-T-LoRa-Pager.bin
+          cp .pio/build/core2_audio_faces/firmware.bin \
+            release-assets/LoFiBox-${{ inputs.tag }}-M5Stack-Core2-Audio-Faces.bin
+
+      - name: Upload firmware to the existing GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.tag }}" release-assets/*.bin --clobber
