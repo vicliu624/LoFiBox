@@ -25,7 +25,11 @@ enum class PageId {
   Playlists,
   PlaylistDetail,
   NowPlaying,
+  Lyrics,
   Settings,
+  AudioOutputSettings,
+  WifiSettings,
+  WifiCredentials,
   Eq,
   About,
 };
@@ -46,11 +50,24 @@ enum class UiIntentKind {
   ToggleRepeat,
   CycleBacklightTimeout,
   CycleSleepTimeout,
+  CycleVolume,
+  ToggleMusicLights,
   OpenEq,
   OpenAbout,
   PrevTrack,
   NextTrack,
   TogglePause,
+  OpenLyrics,
+  OpenWifiSettings,
+  OpenAudioOutputSettings,
+  SetAudioOutputMode,
+  ToggleWifi,
+  ScanWifi,
+  SelectWifiNetwork,
+  EditWifiSsid,
+  EditWifiPassword,
+  CommitWifiCredentials,
+  DownloadLyrics,
 };
 
 enum class SongContext {
@@ -137,11 +154,18 @@ struct UiState {
   int last_track_index = -2;
   uint32_t last_meta_version = 0;
   uint32_t last_cover_version = 0;
+  uint32_t last_audio_output_version = 0;
   int list_offset = 0;
   int list_selected = 0;
   PageId last_list_page = PageId::None;
   int eq_selected_band = 0;
   bool eq_editing = false;
+  String wifi_ssid;
+  String wifi_password;
+  bool wifi_editing_ssid = false;
+  uint8_t wifi_key_row = 0;
+  uint8_t wifi_key_col = 0;
+  uint8_t wifi_keyset = 0;
 };
 
 struct UiView {
@@ -167,9 +191,12 @@ struct UiScreen {
   UiView view{};
 
   static constexpr int kMaxItems = app::kMaxTracks;
-  ListItem items[kMaxItems] = {};
+  // These collections dominate the UI's static RAM footprint.  Allocate them
+  // during UI initialisation so Core2 can place them in PSRAM while boards
+  // without PSRAM retain the same behaviour through normal heap allocation.
+  ListItem *items = nullptr;
   int items_count = 0;
-  RowMeta rows[kMaxItems] = {};
+  RowMeta *rows = nullptr;
   int row_count = 0;
 
   int on_the_go[app::kMaxPlaylistTracks] = {};

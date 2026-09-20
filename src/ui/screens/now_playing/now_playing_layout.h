@@ -21,6 +21,7 @@ struct NowPlayingLayout {
   lv_obj_t *ctrl_next = nullptr;
   lv_obj_t *ctrl_shuffle = nullptr;
   lv_obj_t *ctrl_repeat = nullptr;
+  lv_obj_t *lyrics_hint = nullptr;
   lv_obj_t *key_sink = nullptr;
   lv_coord_t bar_width = 0;
   lv_coord_t cover_size = 0;

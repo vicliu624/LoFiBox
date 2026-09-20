@@ -21,6 +21,10 @@ void key_cb(lv_event_t *e) {
     intent.kind = UiIntentKind::NextTrack;
   } else if (key == LV_KEY_ENTER) {
     intent.kind = UiIntentKind::TogglePause;
+  } else if (key == LV_KEY_DOWN) {
+    intent.kind = UiIntentKind::OpenLyrics;
+  } else if (key == LV_KEY_UP) {
+    intent.kind = UiIntentKind::DownloadLyrics;
   } else {
     return;
   }

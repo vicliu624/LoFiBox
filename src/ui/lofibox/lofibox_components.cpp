@@ -1,6 +1,9 @@
 #include "ui/lofibox/lofibox_components.h"
 
 #include "app/library.h"
+#include "app/lyrics.h"
+#include "app/music_lights.h"
+#include "app/network.h"
 #include "board/BoardBase.h"
 #include "ui/LV_Helper.h"
 #include "ui/common/text_utils.h"
@@ -8,11 +11,13 @@
 #include "ui/screens/common/shell_styles.h"
 #include "ui/screens/eq/eq_components.h"
 #include "ui/screens/list_page/list_page_build.h"
+#include "ui/screens/lyrics/lyrics_components.h"
 #include "ui/screens/main_menu/main_menu_components.h"
 #include "ui/screens/main_menu/main_menu_input.h"
 #include "ui/screens/main_menu/main_menu_layout.h"
 #include "ui/screens/main_menu/main_menu_styles.h"
 #include "ui/screens/now_playing/now_playing_components.h"
+#include "ui/screens/wifi/wifi_components.h"
 #include "ui/ui_common.h"
 
 namespace lofi::ui::components {
@@ -69,8 +74,18 @@ const char *page_title(PageId id) {
     return "Playlist";
   case PageId::NowPlaying:
     return "Now Playing";
+  case PageId::Lyrics:
+    // This is a transient Now Playing mode, not an independently navigable
+    // screen in the application's information architecture.
+    return "Now Playing";
   case PageId::Settings:
     return "Settings";
+  case PageId::AudioOutputSettings:
+    return "Audio output";
+  case PageId::WifiSettings:
+    return "Wi-Fi";
+  case PageId::WifiCredentials:
+    return "Wi-Fi credentials";
   case PageId::Eq:
     return "EQ";
   case PageId::About:
@@ -459,6 +474,8 @@ void update_now_playing(UiScreen &screen) {
   screens::now_playing::update(screen);
 }
 
+void update_lyrics(UiScreen &screen) { screens::lyrics::update(screen); }
+
 void update_main_menu(UiScreen &screen) {
   auto &menu = screen.view.menu;
   if (!menu.wrap) {
@@ -675,6 +692,122 @@ NavCommand handle_intent(UiScreen &screen, const UiIntent &intent) {
     cmd.type = NavCommand::Type::NavigateTo;
     cmd.target = PageId::Eq;
     break;
+  case UiIntentKind::OpenLyrics:
+    cmd.type = NavCommand::Type::NavigateTo;
+    cmd.target = PageId::Lyrics;
+    break;
+  case UiIntentKind::OpenWifiSettings:
+    cmd.type = NavCommand::Type::NavigateTo;
+    cmd.target = PageId::WifiSettings;
+    break;
+  case UiIntentKind::OpenAudioOutputSettings:
+    cmd.type = NavCommand::Type::NavigateTo;
+    cmd.target = PageId::AudioOutputSettings;
+    break;
+  case UiIntentKind::SetAudioOutputMode:
+    if (screen.player &&
+        intent.value >= static_cast<int>(app::AudioOutputMode::Auto) &&
+        intent.value <= static_cast<int>(app::AudioOutputMode::Headphones)) {
+      app::player_set_audio_output_mode(
+          *screen.player, static_cast<app::AudioOutputMode>(intent.value));
+    }
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::ToggleWifi:
+    app::network::set_enabled(!app::network::enabled());
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::ScanWifi:
+    app::network::start_scan();
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::SelectWifiNetwork: {
+    const app::network::ScanResult *result =
+        app::network::scan_result(static_cast<uint8_t>(intent.value));
+    if (result) {
+      Serial.printf("[WIFI UI] selected SSID index=%d name=%s\n", intent.value,
+                    result->ssid.c_str());
+      screen.state.wifi_ssid = result->ssid;
+      screen.state.wifi_password = "";
+      screen.state.wifi_editing_ssid = false;
+      screen.state.wifi_key_row = 0;
+      screen.state.wifi_key_col = 0;
+      cmd.type = NavCommand::Type::NavigateTo;
+      cmd.target = PageId::WifiCredentials;
+    } else {
+      Serial.printf("[WIFI UI] selected SSID index=%d missing\n", intent.value);
+    }
+    break;
+  }
+  case UiIntentKind::CycleVolume:
+    if (screen.player) {
+      const uint8_t volume = app::player_get_volume(*screen.player);
+      const uint8_t next =
+          (volume >= 21) ? 0 : static_cast<uint8_t>(volume + 3);
+      app::player_set_volume(*screen.player, next > 21 ? 21 : next);
+    }
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::ToggleMusicLights:
+    app::music_lights::set_enabled(!app::music_lights::enabled());
+    // Apply the off state immediately, rather than waiting for the next UI
+    // frame or PCM callback.
+    board.updateMusicLights(0, false, false);
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::EditWifiSsid:
+    screen.state.wifi_ssid = "";
+    screen.state.wifi_password = "";
+    screen.state.wifi_editing_ssid = true;
+    screen.state.wifi_key_row = 0;
+    screen.state.wifi_key_col = 0;
+    cmd.type = NavCommand::Type::NavigateTo;
+    cmd.target = PageId::WifiCredentials;
+    break;
+  case UiIntentKind::EditWifiPassword:
+    screen.state.wifi_editing_ssid = false;
+    screen.state.wifi_key_row = 0;
+    screen.state.wifi_key_col = 0;
+    cmd.type = NavCommand::Type::Rebuild;
+    break;
+  case UiIntentKind::CommitWifiCredentials:
+    if (screen.state.wifi_editing_ssid) {
+      if (!screen.state.wifi_ssid.isEmpty()) {
+        screen.state.wifi_editing_ssid = false;
+        screen.state.wifi_key_row = 0;
+        screen.state.wifi_key_col = 0;
+        cmd.type = NavCommand::Type::Rebuild;
+      }
+    } else if (app::network::connect(screen.state.wifi_ssid,
+                                     screen.state.wifi_password)) {
+      cmd.type = NavCommand::Type::Back;
+    }
+    break;
+  case UiIntentKind::DownloadLyrics:
+    if (screen.player && screen.library && screen.player->current_index >= 0 &&
+        screen.player->current_index < screen.library->track_count) {
+      const app::TrackInfo &track =
+          screen.library->tracks[screen.player->current_index];
+      // HTTP/TLS and SD writes run on the foreground loop.  Pause explicitly
+      // for this optional, user-initiated operation so the I2S DMA queue does
+      // not drain and turn a slow network response into an audible underrun.
+      const bool resume_after_download =
+          screen.player->is_playing && !screen.player->paused;
+      if (resume_after_download) {
+        app::player_toggle_pause(*screen.player);
+      }
+      const bool downloaded = app::lyrics_download_for_track(
+          screen.player->current_index, track.path, track.title, track.artist,
+          track.album, app::player_duration());
+      if (resume_after_download) {
+        app::player_toggle_pause(*screen.player);
+      }
+      Serial.printf("[LYRICS] download %s\n",
+                    downloaded ? "complete" : "failed");
+    }
+    cmd.type = NavCommand::Type::NavigateTo;
+    cmd.target = PageId::Lyrics;
+    break;
   case UiIntentKind::OpenAbout:
     cmd.type = NavCommand::Type::NavigateTo;
     cmd.target = PageId::About;
@@ -742,6 +875,10 @@ void build_page(UiScreen &screen) {
 
   if (screen.state.current == PageId::NowPlaying) {
     screens::now_playing::build(screen);
+  } else if (screen.state.current == PageId::Lyrics) {
+    screens::lyrics::build(screen);
+  } else if (screen.state.current == PageId::WifiCredentials) {
+    screens::wifi::build_credentials(screen);
   } else if (screen.state.current == PageId::MainMenu) {
     build_main_menu(screen);
   } else if (screen.state.current == PageId::Eq) {

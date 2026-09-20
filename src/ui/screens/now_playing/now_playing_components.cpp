@@ -581,6 +581,41 @@ void update_cover(UiScreen &screen) {
   }
 }
 
+void control_tap_cb(lv_event_t *event) {
+  if (lv_event_get_code(event) != LV_EVENT_CLICKED) {
+    return;
+  }
+  auto *screen = static_cast<UiScreen *>(lv_event_get_user_data(event));
+  if (!screen_alive(screen)) {
+    return;
+  }
+
+  lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(event));
+  UiIntent intent{};
+  if (target == screen->view.now.ctrl_prev) {
+    intent.kind = UiIntentKind::PrevTrack;
+  } else if (target == screen->view.now.ctrl_play) {
+    intent.kind = UiIntentKind::TogglePause;
+  } else if (target == screen->view.now.ctrl_next) {
+    intent.kind = UiIntentKind::NextTrack;
+  } else if (target == screen->view.now.ctrl_shuffle) {
+    intent.kind = UiIntentKind::ToggleShuffle;
+  } else if (target == screen->view.now.ctrl_repeat) {
+    intent.kind = UiIntentKind::ToggleRepeat;
+  } else {
+    return;
+  }
+  request_intent(screen, intent);
+}
+
+void attach_touch_control(UiScreen &screen, lv_obj_t *control) {
+  if (!control) {
+    return;
+  }
+  lv_obj_add_flag(control, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(control, control_tap_cb, LV_EVENT_CLICKED, &screen);
+}
+
 } // namespace
 
 void build(UiScreen &screen) {
@@ -613,6 +648,7 @@ void build(UiScreen &screen) {
   styles::apply_control_icon(screen.view.now.ctrl_next);
   styles::apply_control_icon(screen.view.now.ctrl_shuffle);
   styles::apply_control_icon(screen.view.now.ctrl_repeat);
+  styles::apply_time_label(screen.view.now.lyrics_hint);
   styles::apply_key_sink(screen.view.now.key_sink);
 
   lv_label_set_text(screen.view.now.title, "No Track");
@@ -653,6 +689,8 @@ void build(UiScreen &screen) {
   lv_label_set_text(screen.view.now.ctrl_next, LV_SYMBOL_NEXT);
   lv_label_set_text(screen.view.now.ctrl_shuffle, LV_SYMBOL_SHUFFLE);
   lv_label_set_text(screen.view.now.ctrl_repeat, LV_SYMBOL_LOOP);
+  lv_label_set_text(screen.view.now.lyrics_hint,
+                    "UP: Download lyrics  DOWN: Lyrics");
   lv_obj_add_flag(screen.view.now.cover, LV_OBJ_FLAG_HIDDEN);
 
   if (screen.view.now.cover_size > 0) {
@@ -671,6 +709,14 @@ void build(UiScreen &screen) {
 
   lv_bar_set_range(screen.view.now.bar, 0, 100);
   lv_bar_set_value(screen.view.now.bar, 0, LV_ANIM_OFF);
+
+  // Faces remains the physical control surface, while Core2 users can tap
+  // exactly the same five transport/mode actions shown on the display.
+  attach_touch_control(screen, screen.view.now.ctrl_prev);
+  attach_touch_control(screen, screen.view.now.ctrl_play);
+  attach_touch_control(screen, screen.view.now.ctrl_next);
+  attach_touch_control(screen, screen.view.now.ctrl_shuffle);
+  attach_touch_control(screen, screen.view.now.ctrl_repeat);
 
   input::attach(screen, screen.view.now.key_sink);
 }

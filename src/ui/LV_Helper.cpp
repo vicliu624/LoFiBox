@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <SD.h>
+#include <esp_heap_caps.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,6 +30,7 @@ static uint16_t s_fb_width = 0;
 static uint16_t s_fb_height = 0;
 static bool s_fb_ready = false;
 static lv_indev_t *s_indev_keyboard = nullptr;
+static lv_indev_t *s_indev_touch = nullptr;
 static bool s_key_pending = false;
 static uint32_t s_last_key = 0;
 static lv_fs_drv_t s_sd_drv;
@@ -36,10 +38,22 @@ static uint32_t s_last_input_ms = 0;
 static bool s_display_sleep = false;
 static uint8_t s_saved_brightness = 0;
 static uint8_t s_saved_kb_brightness = 0;
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+// Core2 is battery powered and has a bright LCD; the Gamepad can wake it, so
+// never default to an always-on backlight.
+static uint32_t s_backlight_timeout_ms = 30000;
+#else
 static uint32_t s_backlight_timeout_ms = 10000;
+#endif
 static uint32_t s_sleep_timeout_ms = 0;
 static bool s_settings_loaded = false;
 static bool s_sleep_requested = false;
+// A touch that wakes the LCD must be released before LVGL sees a new press.
+// This keeps the wake gesture from also activating the item underneath it.
+static bool s_touch_wake_consumed = false;
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+static bool s_core2_flush_logged = false;
+#endif
 
 constexpr uint32_t kMinTimeoutMs = 1000;
 constexpr char kPrefsNamespace[] = "ui";
@@ -185,6 +199,14 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area,
 
   board.displayPushColors(area->x1, area->y1, w, h,
                           reinterpret_cast<uint16_t *>(color_p));
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+  if (!s_core2_flush_logged) {
+    s_core2_flush_logged = true;
+    Serial.printf("[CORE2] first LVGL flush x=%ld y=%ld w=%ld h=%ld\n",
+                  static_cast<long>(area->x1), static_cast<long>(area->y1),
+                  static_cast<long>(w), static_cast<long>(h));
+  }
+#endif
   lv_display_flush_ready(disp_drv);
 }
 
@@ -270,6 +292,32 @@ static void keypad_read(lv_indev_t *drv, lv_indev_data_t *data) {
   }
 
   data->state = LV_INDEV_STATE_RELEASED;
+}
+
+static void touch_read(lv_indev_t *drv, lv_indev_data_t *data) {
+  (void)drv;
+  BoardBase::TouchState touch{};
+  if (!board.readTouch(&touch)) {
+    data->state = LV_INDEV_STATE_RELEASED;
+    return;
+  }
+
+  data->point.x = static_cast<lv_coord_t>(touch.x);
+  data->point.y = static_cast<lv_coord_t>(touch.y);
+  if (!touch.pressed) {
+    s_touch_wake_consumed = false;
+    data->state = LV_INDEV_STATE_RELEASED;
+    return;
+  }
+
+  const bool was_sleep = s_display_sleep;
+  note_input_activity();
+  if (was_sleep || s_touch_wake_consumed) {
+    s_touch_wake_consumed = true;
+    data->state = LV_INDEV_STATE_RELEASED;
+    return;
+  }
+  data->state = LV_INDEV_STATE_PRESSED;
 }
 
 static bool sd_ready_cb(lv_fs_drv_t *drv) {
@@ -382,13 +430,30 @@ void beginLvglHelper() {
   const uint32_t buffer_pixels = (width * height) / 6;
   const size_t buffer_size = buffer_pixels * sizeof(lv_color_t);
 
-  s_buf1 = static_cast<lv_color_t *>(malloc(buffer_size));
-  s_buf2 = static_cast<lv_color_t *>(malloc(buffer_size));
+  // The renderer buffers must remain in internal RAM, where they can be used
+  // by the display path without competing with PSRAM-backed media buffers.
+  s_buf1 = static_cast<lv_color_t *>(
+      heap_caps_malloc(buffer_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+  s_buf2 = static_cast<lv_color_t *>(
+      heap_caps_malloc(buffer_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+  Serial.printf("[CORE2] LVGL %ux%u draw=%uB x2 internal=%s\n", width, height,
+                static_cast<unsigned>(buffer_size),
+                (s_buf1 && s_buf2) ? "ok" : "failed");
+#endif
+
+  const size_t framebuffer_size =
+      static_cast<size_t>(width) * height * sizeof(lv_color_t);
+#if defined(BOARD_HAS_PSRAM)
   s_framebuffer = static_cast<lv_color_t *>(
-      malloc(static_cast<size_t>(width) * height * sizeof(lv_color_t)));
+      heap_caps_malloc(framebuffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+#endif
+  if (!s_framebuffer) {
+    s_framebuffer = static_cast<lv_color_t *>(malloc(framebuffer_size));
+  }
   if (s_framebuffer) {
-    memset(s_framebuffer, 0,
-           static_cast<size_t>(width) * height * sizeof(lv_color_t));
+    memset(s_framebuffer, 0, framebuffer_size);
     s_fb_width = static_cast<uint16_t>(width);
     s_fb_height = static_cast<uint16_t>(height);
     s_fb_ready = false;
@@ -406,6 +471,14 @@ void beginLvglHelper() {
   lv_indev_set_read_cb(s_indev_keyboard, keypad_read);
   lv_indev_set_display(s_indev_keyboard, s_display);
   lv_indev_set_group(s_indev_keyboard, lv_group_get_default());
+
+  // Core2 supplies a real capacitive touch controller through M5Unified.
+  // Other boards report no touch from BoardBase and simply get an idle pointer
+  // device, which keeps this shared UI path free of board-specific branches.
+  s_indev_touch = lv_indev_create();
+  lv_indev_set_type(s_indev_touch, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(s_indev_touch, touch_read);
+  lv_indev_set_display(s_indev_touch, s_display);
 
   s_last_input_ms = millis();
   s_saved_brightness = board.getBrightness();

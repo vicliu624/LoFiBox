@@ -3,9 +3,17 @@
 #include <Arduino.h>
 #include <Audio.h>
 #include <FS.h>
+#include <Preferences.h>
 #include <SD.h>
 #include <cstring>
 
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+#endif
+
+#include "app/lyrics.h"
 #include "board/BoardBase.h"
 
 namespace app {
@@ -13,6 +21,66 @@ namespace {
 static Audio s_audio;
 static Library *s_library = nullptr;
 static PlayerState *s_state = nullptr;
+static uint32_t s_last_sample_rate = 0;
+static uint32_t s_clock_seconds = 0;
+static uint32_t s_clock_mark_ms = 0;
+static uint32_t s_last_output_detect_ms = 0;
+static BoardBase::AudioOutput s_active_output = BoardBase::AudioOutput::Speaker;
+
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+// Core2 redraws are synchronous SPI transfers. Keep decoding on the other
+// ESP32 core so a focused row, a page transition, or a touch repaint cannot
+// drain the I2S DMA queue. A recursive mutex is required because Audio::loop()
+// can invoke audio_eof_mp3(), which immediately starts the next track.
+static SemaphoreHandle_t s_audio_mutex = nullptr;
+static TaskHandle_t s_audio_task = nullptr;
+constexpr uint32_t kAudioTaskStackWords = 8192;
+constexpr UBaseType_t kAudioTaskPriority = 3;
+
+class AudioGuard {
+public:
+  AudioGuard() {
+    if (s_audio_mutex) {
+      xSemaphoreTakeRecursive(s_audio_mutex, portMAX_DELAY);
+      locked_ = true;
+    }
+  }
+  ~AudioGuard() {
+    if (locked_) {
+      xSemaphoreGiveRecursive(s_audio_mutex);
+    }
+  }
+
+private:
+  bool locked_ = false;
+};
+
+void audio_service_task(void *) {
+  for (;;) {
+    if (s_state && s_state->is_playing && !s_state->paused) {
+      {
+        AudioGuard lock;
+        if (s_state->is_playing && !s_state->paused) {
+          s_audio.loop();
+        }
+      }
+      // Yield to the ESP32 system tasks without leaving a multi-millisecond
+      // gap in decoder servicing.
+      taskYIELD();
+    } else {
+      vTaskDelay(1);
+    }
+  }
+}
+
+bool audio_service_is_running() { return s_audio_task != nullptr; }
+#else
+class AudioGuard {};
+bool audio_service_is_running() { return false; }
+#endif
+
+constexpr char kAudioPrefsNamespace[] = "audio";
+constexpr char kAudioOutputKey[] = "output";
 
 constexpr size_t kCoverScanMax = 16384;
 constexpr size_t kCoverChunkSize = 512;
@@ -34,6 +102,65 @@ static bool same_str(const char *a, const char *b) {
     b = "";
   }
   return strcmp(a, b) == 0;
+}
+
+static BoardBase::AudioOutput resolve_audio_output(const PlayerState &state) {
+  if (state.audio_output_mode == AudioOutputMode::Headphones) {
+    return BoardBase::AudioOutput::Headphones;
+  }
+  if (state.audio_output_mode == AudioOutputMode::Speaker) {
+    return BoardBase::AudioOutput::Speaker;
+  }
+  return board.headphonesInserted() ? BoardBase::AudioOutput::Headphones
+                                    : BoardBase::AudioOutput::Speaker;
+}
+
+static void apply_audio_output(PlayerState &state, bool force = false) {
+  if (!board.supportsAudioOutputSelection()) {
+    return;
+  }
+  const BoardBase::AudioOutput next = resolve_audio_output(state);
+  if (!force && next == s_active_output) {
+    return;
+  }
+
+  uint8_t bclk = 0;
+  uint8_t lrck = 0;
+  uint8_t dout = 0;
+  int8_t mclk = -1;
+  if (!board.getAudioOutputPinout(next, bclk, lrck, dout, mclk)) {
+    return;
+  }
+
+  // setPinout only remaps the running I2S peripheral; it does not recreate
+  // the decoder or reopen the file, so a jack insertion does not restart the
+  // current track.
+  {
+    AudioGuard lock;
+    board.setAudioOutput(next);
+    if (!s_audio.setPinout(bclk, lrck, dout, I2S_PIN_NO_CHANGE, mclk)) {
+      return;
+    }
+  }
+  s_active_output = next;
+  const bool headphones = next == BoardBase::AudioOutput::Headphones;
+  if (state.headphones_active != headphones || force) {
+    state.headphones_active = headphones;
+    ++state.audio_output_version;
+  }
+}
+
+static void update_auto_audio_output(PlayerState &state) {
+  if (state.audio_output_mode != AudioOutputMode::Auto ||
+      !board.supportsAudioOutputSelection()) {
+    return;
+  }
+  const uint32_t now = millis();
+  if (now - s_last_output_detect_ms < 500) {
+    return;
+  }
+  s_last_output_detect_ms = now;
+  apply_audio_output(state);
 }
 
 static CoverFormat detect_cover_format(File &file, size_t pos) {
@@ -142,9 +269,13 @@ static void start_track(int index) {
   s_state->current_index = index;
   s_state->is_playing = true;
   s_state->paused = false;
+  board.setAudioActive(true);
   track.play_count++;
   track.last_played = millis() / 1000;
   reset_cover(*s_state);
+  lyrics_load_for_track(index, track.path);
+  s_clock_seconds = 0;
+  s_clock_mark_ms = millis();
   if (track.cover_len > 0 && track.cover_format != CoverFormat::Unknown) {
     s_state->cover_pos = track.cover_pos;
     s_state->cover_len = track.cover_len;
@@ -153,8 +284,11 @@ static void start_track(int index) {
     s_state->cover_ready = true;
   }
 
-  s_audio.stopSong();
-  s_audio.connecttoFS(SD, track.path ? track.path : "");
+  {
+    AudioGuard lock;
+    s_audio.stopSong();
+    s_audio.connecttoFS(SD, track.path ? track.path : "");
+  }
 }
 
 static void pick_next(bool forward) {
@@ -298,6 +432,23 @@ static void handle_id3_image(File &file, size_t pos, size_t size) {
 void player_init(PlayerState &state, Library &lib) {
   s_library = &lib;
   s_state = &state;
+  s_last_sample_rate = 0;
+  s_clock_seconds = 0;
+  s_clock_mark_ms = millis();
+  s_last_output_detect_ms = 0;
+  Preferences prefs;
+  // Open read/write on first boot too: a read-only Preferences namespace
+  // cannot be opened until it already exists, which would make a fresh Core2
+  // emit an error before it can use the default Auto route.
+  if (prefs.begin(kAudioPrefsNamespace, false)) {
+    const uint8_t saved = prefs.getUChar(
+        kAudioOutputKey, static_cast<uint8_t>(AudioOutputMode::Auto));
+    if (saved <= static_cast<uint8_t>(AudioOutputMode::Headphones)) {
+      state.audio_output_mode = static_cast<AudioOutputMode>(saved);
+    }
+    prefs.end();
+  }
+  lyrics_init();
   state.cover_ready = false;
   state.cover_path = "";
   state.cover_version = 0;
@@ -313,15 +464,55 @@ void player_init(PlayerState &state, Library &lib) {
   int8_t mclk = I2S_PIN_NO_CHANGE;
 
   board.initAudio(bclk, lrck, dout, mclk);
-  s_audio.setPinout(bclk, lrck, dout, I2S_PIN_NO_CHANGE, mclk);
-  s_audio.setVolume(state.volume);
+  {
+    AudioGuard lock;
+    s_audio.setPinout(bclk, lrck, dout, I2S_PIN_NO_CHANGE, mclk);
+    s_audio.setVolume(state.volume);
+  }
+  apply_audio_output(state, true);
+
+#if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
+  if (!s_audio_mutex) {
+    s_audio_mutex = xSemaphoreCreateRecursiveMutex();
+  }
+  if (s_audio_mutex && !s_audio_task) {
+    const BaseType_t started = xTaskCreatePinnedToCore(
+        audio_service_task, "lofi_audio", kAudioTaskStackWords, nullptr,
+        kAudioTaskPriority, &s_audio_task, 0);
+    if (started != pdPASS) {
+      s_audio_task = nullptr;
+      Serial.println("[CORE2 AUDIO] failed to start audio task");
+    } else {
+      Serial.println("[CORE2 AUDIO] decoder task pinned to core 0");
+    }
+  }
+#endif
 }
 
 void player_loop(PlayerState &state) {
+  update_auto_audio_output(state);
   if (!state.is_playing || state.paused) {
     return;
   }
-  s_audio.loop();
+  if (!audio_service_is_running()) {
+    AudioGuard lock;
+    s_audio.loop();
+  }
+  uint32_t current_seconds = 0;
+  uint32_t sample_rate = 0;
+  {
+    AudioGuard lock;
+    current_seconds = s_audio.getAudioCurrentTime();
+    sample_rate = s_audio.getSampleRate();
+  }
+  if (current_seconds != s_clock_seconds) {
+    s_clock_seconds = current_seconds;
+    s_clock_mark_ms = millis();
+  }
+  if (sample_rate != 0 && sample_rate != s_last_sample_rate) {
+    board.setAudioSampleRate(sample_rate);
+    s_last_sample_rate = sample_rate;
+  }
 }
 
 void player_play(PlayerState &state, int track_index) {
@@ -335,7 +526,11 @@ void player_toggle_pause(PlayerState &state) {
     return;
   }
   state.paused = !state.paused;
-  s_audio.pauseResume();
+  {
+    AudioGuard lock;
+    s_audio.pauseResume();
+  }
+  board.setAudioActive(!state.paused);
 }
 
 void player_next(PlayerState &state) {
@@ -349,9 +544,13 @@ void player_prev(PlayerState &state) {
 }
 
 void player_stop(PlayerState &state) {
-  s_audio.stopSong();
+  {
+    AudioGuard lock;
+    s_audio.stopSong();
+  }
   state.is_playing = false;
   state.paused = false;
+  board.setAudioActive(false);
 }
 
 uint8_t player_get_volume(const PlayerState &state) { return state.volume; }
@@ -361,18 +560,86 @@ void player_set_volume(PlayerState &state, uint8_t volume) {
     volume = 21;
   }
   state.volume = volume;
-  s_audio.setVolume(volume);
+  {
+    AudioGuard lock;
+    s_audio.setVolume(volume);
+  }
 }
 
-uint32_t player_current_time() { return s_audio.getAudioCurrentTime(); }
+const char *player_audio_output_mode_name(AudioOutputMode mode) {
+  switch (mode) {
+  case AudioOutputMode::Speaker:
+    return "Core2 speaker";
+  case AudioOutputMode::Headphones:
+    return "Headphones";
+  case AudioOutputMode::Auto:
+  default:
+    return "Auto";
+  }
+}
 
-uint32_t player_duration() { return s_audio.getAudioFileDuration(); }
+String player_audio_output_label(const PlayerState &state) {
+  if (state.audio_output_mode != AudioOutputMode::Auto) {
+    return player_audio_output_mode_name(state.audio_output_mode);
+  }
+  return String("Auto: ") +
+         (state.headphones_active ? "Headphones" : "Core2 speaker");
+}
 
-uint32_t player_sample_rate() { return s_audio.getSampleRate(); }
+void player_set_audio_output_mode(PlayerState &state, AudioOutputMode mode) {
+  if (mode > AudioOutputMode::Headphones) {
+    mode = AudioOutputMode::Auto;
+  }
+  state.audio_output_mode = mode;
+  Preferences prefs;
+  if (prefs.begin(kAudioPrefsNamespace, false)) {
+    prefs.putUChar(kAudioOutputKey, static_cast<uint8_t>(mode));
+    prefs.end();
+  }
+  apply_audio_output(state, true);
+}
 
-uint8_t player_channels() { return s_audio.getChannels(); }
+uint32_t player_current_time() {
+  AudioGuard lock;
+  return s_audio.getAudioCurrentTime();
+}
 
-uint8_t player_bits_per_sample() { return s_audio.getBitsPerSample(); }
+uint32_t player_current_time_ms() {
+  uint32_t seconds = 0;
+  {
+    AudioGuard lock;
+    seconds = s_audio.getAudioCurrentTime();
+  }
+  if (!s_state || s_state->paused || !s_state->is_playing) {
+    return seconds * 1000UL;
+  }
+  if (seconds != s_clock_seconds) {
+    s_clock_seconds = seconds;
+    s_clock_mark_ms = millis();
+  }
+  const uint32_t fraction = millis() - s_clock_mark_ms;
+  return seconds * 1000UL + (fraction > 999 ? 999 : fraction);
+}
+
+uint32_t player_duration() {
+  AudioGuard lock;
+  return s_audio.getAudioFileDuration();
+}
+
+uint32_t player_sample_rate() {
+  AudioGuard lock;
+  return s_audio.getSampleRate();
+}
+
+uint8_t player_channels() {
+  AudioGuard lock;
+  return s_audio.getChannels();
+}
+
+uint8_t player_bits_per_sample() {
+  AudioGuard lock;
+  return s_audio.getBitsPerSample();
+}
 
 } // namespace app
 

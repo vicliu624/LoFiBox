@@ -1,3 +1,5 @@
+#if defined(BOARD_TLORA_PAGER)
+
 #include "TLoraPagerBoard.h"
 
 #include <SD.h>
@@ -443,3 +445,5 @@ bool TLoraPagerBoard::initAudio(uint8_t &bclk, uint8_t &lrck, uint8_t &dout,
   mclk = I2S_MCLK;
   return ok;
 }
+
+#endif // defined(BOARD_TLORA_PAGER)
