@@ -107,8 +107,7 @@ EqLayout create(lv_obj_t *content) {
   }
   lv_coord_t label_w = compact_layout ? 0 : (graph_w * 20) / 100;
   lv_coord_t db_w = compact_layout ? 0 : (graph_w * 9) / 100;
-  lv_coord_t slider_area_w =
-      compact_layout ? graph_w : (graph_w * 64) / 100;
+  lv_coord_t slider_area_w = compact_layout ? graph_w : (graph_w * 64) / 100;
   lv_coord_t right_pad = graph_w - label_w - db_w - gap * 2 - slider_area_w;
   lv_coord_t min_slider_area = scale_w(120);
   if (slider_area_w < min_slider_area) {
@@ -179,9 +178,9 @@ EqLayout create(lv_obj_t *content) {
   lv_label_set_text(refs.db_bottom, "-12 dB");
 
   lv_obj_t *slider_area = lv_obj_create(refs.panel);
-  lv_coord_t slider_x = compact_layout
-                            ? graph_x
-                            : graph_x + label_w + db_w + gap * 2 + right_pad / 2;
+  lv_coord_t slider_x =
+      compact_layout ? graph_x
+                     : graph_x + label_w + db_w + gap * 2 + right_pad / 2;
   lv_obj_set_pos(slider_area, slider_x, graph_y);
   lv_obj_set_size(slider_area, slider_area_w, graph_inner_h);
   lv_obj_clear_flag(slider_area, LV_OBJ_FLAG_SCROLLABLE);

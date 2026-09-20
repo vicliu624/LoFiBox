@@ -1,7 +1,7 @@
 #include "app/lyrics.h"
 
-#include <SD.h>
 #include <HTTPClient.h>
+#include <SD.h>
 #include <WiFiClientSecure.h>
 #include <esp_heap_caps.h>
 #include <stdlib.h>
@@ -65,9 +65,10 @@ bool parse_timestamp(const char *tag, size_t len, uint32_t &time_ms) {
   if (second_end == second_buf || *second_end != '\0' || seconds < 0.0) {
     return false;
   }
-  const double total_ms = (static_cast<double>(minutes) * 60.0 + seconds) * 1000.0;
+  const double total_ms =
+      (static_cast<double>(minutes) * 60.0 + seconds) * 1000.0;
   time_ms = total_ms > 4294967295.0 ? UINT32_MAX
-                                     : static_cast<uint32_t>(total_ms + 0.5);
+                                    : static_cast<uint32_t>(total_ms + 0.5);
   return true;
 }
 
@@ -183,7 +184,8 @@ bool load_file(const String &path) {
 String url_encode(const char *value) {
   String encoded;
   static constexpr char kHex[] = "0123456789ABCDEF";
-  for (const uint8_t *cursor = reinterpret_cast<const uint8_t *>(value ? value : "");
+  for (const uint8_t *cursor =
+           reinterpret_cast<const uint8_t *>(value ? value : "");
        *cursor; ++cursor) {
     const uint8_t ch = *cursor;
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
@@ -209,10 +211,14 @@ String json_string_field(const String &json, const char *field) {
   for (int i = start + marker.length(); i < json.length(); ++i) {
     const char ch = json[i];
     if (escaped) {
-      if (ch == 'n') value += '\n';
-      else if (ch == 'r') value += '\r';
-      else if (ch == 't') value += '\t';
-      else value += ch;
+      if (ch == 'n')
+        value += '\n';
+      else if (ch == 'r')
+        value += '\r';
+      else if (ch == 't')
+        value += '\t';
+      else
+        value += ch;
       escaped = false;
     } else if (ch == '\\') {
       escaped = true;
@@ -231,14 +237,15 @@ void lyrics_init() {
     return;
   }
 #if defined(BOARD_HAS_PSRAM)
-  s_lyrics.lines = static_cast<LyricLine *>(heap_caps_malloc(
-      sizeof(LyricLine) * kMaxLyricsLines, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-  s_lyrics.text = static_cast<char *>(heap_caps_malloc(
-      kLyricsTextBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  s_lyrics.lines = static_cast<LyricLine *>(
+      heap_caps_malloc(sizeof(LyricLine) * kMaxLyricsLines,
+                       MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  s_lyrics.text = static_cast<char *>(
+      heap_caps_malloc(kLyricsTextBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
 #endif
   if (!s_lyrics.lines) {
-    s_lyrics.lines = static_cast<LyricLine *>(
-        malloc(sizeof(LyricLine) * kMaxLyricsLines));
+    s_lyrics.lines =
+        static_cast<LyricLine *>(malloc(sizeof(LyricLine) * kMaxLyricsLines));
   }
   if (!s_lyrics.text) {
     s_lyrics.text = static_cast<char *>(malloc(kLyricsTextBytes));
@@ -289,7 +296,8 @@ bool lyrics_download_for_track(int track_index, const char *audio_path,
   // This is an explicit foreground operation.  Keep the failure path bounded
   // rather than leaving the player paused for a long captive-portal timeout.
   http.setTimeout(8000);
-  http.addHeader("User-Agent", "LoFiBox/1.0 (https://github.com/vicliu624/LoFiBox)");
+  http.addHeader("User-Agent",
+                 "LoFiBox/1.0 (https://github.com/vicliu624/LoFiBox)");
   const int status = http.GET();
   const String response = status == HTTP_CODE_OK ? http.getString() : String();
   http.end();

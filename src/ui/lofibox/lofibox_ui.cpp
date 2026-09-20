@@ -9,8 +9,8 @@
 #include <esp_heap_caps.h>
 #endif
 
-#include "ui/fonts/fonts.h"
 #include "app/network.h"
+#include "ui/fonts/fonts.h"
 #include "ui/lofibox/lofibox_components.h"
 #include "ui/lofibox/lofibox_ui_internal.h"
 
@@ -21,8 +21,8 @@ UiScreen s_screen;
 template <typename T> T *allocate_ui_array(size_t count) {
   void *storage = nullptr;
 #if defined(BOARD_HAS_PSRAM)
-  storage = heap_caps_malloc(sizeof(T) * count,
-                             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  storage =
+      heap_caps_malloc(sizeof(T) * count, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #endif
   if (!storage) {
     storage = malloc(sizeof(T) * count);

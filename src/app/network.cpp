@@ -21,16 +21,19 @@ uint32_t s_last_connect_attempt_ms = 0;
 
 void load_saved_network() {
   Preferences prefs;
-  if (!prefs.begin(kPrefsNamespace, true)) return;
+  if (!prefs.begin(kPrefsNamespace, true))
+    return;
   s_enabled = prefs.getBool(kEnabledKey, false);
   s_ssid = prefs.getString(kSsidKey, "");
   prefs.end();
 }
 
 void connect_saved_network() {
-  if (!s_enabled || s_ssid.isEmpty()) return;
+  if (!s_enabled || s_ssid.isEmpty())
+    return;
   Preferences prefs;
-  if (!prefs.begin(kPrefsNamespace, true)) return;
+  if (!prefs.begin(kPrefsNamespace, true))
+    return;
   const String password = prefs.getString(kPasswordKey, "");
   prefs.end();
   WiFi.mode(WIFI_STA);
@@ -43,7 +46,8 @@ void finish_scan(int found) {
   if (found > 0) {
     for (int i = 0; i < found && s_result_count < kMaxScanResults; ++i) {
       const String ssid = WiFi.SSID(i);
-      if (ssid.isEmpty()) continue;
+      if (ssid.isEmpty())
+        continue;
       bool duplicate = false;
       for (uint8_t j = 0; j < s_result_count; ++j) {
         if (s_results[j].ssid == ssid) {
@@ -51,7 +55,8 @@ void finish_scan(int found) {
           break;
         }
       }
-      if (duplicate) continue;
+      if (duplicate)
+        continue;
       ScanResult &result = s_results[s_result_count++];
       result.ssid = ssid;
       result.rssi = WiFi.RSSI(i);
@@ -80,10 +85,12 @@ void init() {
 }
 
 void tick() {
-  if (!s_enabled) return;
+  if (!s_enabled)
+    return;
   if (s_scanning) {
     const int state = WiFi.scanComplete();
-    if (state >= 0) finish_scan(state);
+    if (state >= 0)
+      finish_scan(state);
   }
   if (!s_ssid.isEmpty() && !s_scanning && WiFi.status() != WL_CONNECTED &&
       millis() - s_last_connect_attempt_ms >= kReconnectIntervalMs) {
@@ -94,7 +101,8 @@ void tick() {
 bool enabled() { return s_enabled; }
 
 void set_enabled(bool value) {
-  if (s_enabled == value) return;
+  if (s_enabled == value)
+    return;
   s_enabled = value;
   Preferences prefs;
   if (prefs.begin(kPrefsNamespace, false)) {
@@ -116,16 +124,20 @@ void set_enabled(bool value) {
 bool connected() { return s_enabled && WiFi.status() == WL_CONNECTED; }
 
 String status_label() {
-  if (!s_enabled) return "Off";
-  if (connected()) return "Connected";
-  if (s_scanning) return "Scanning...";
+  if (!s_enabled)
+    return "Off";
+  if (connected())
+    return "Connected";
+  if (s_scanning)
+    return "Scanning...";
   return s_ssid.isEmpty() ? "On" : "Connecting...";
 }
 
 String saved_ssid() { return s_ssid; }
 
 bool start_scan() {
-  if (!s_enabled || s_scanning) return false;
+  if (!s_enabled || s_scanning)
+    return false;
   WiFi.mode(WIFI_STA);
   WiFi.scanDelete();
   const int started = WiFi.scanNetworks(true, true);
@@ -150,9 +162,11 @@ bool take_scan_changed() {
 }
 
 bool connect(const String &ssid, const String &password) {
-  if (!s_enabled || ssid.isEmpty()) return false;
+  if (!s_enabled || ssid.isEmpty())
+    return false;
   Preferences prefs;
-  if (!prefs.begin(kPrefsNamespace, false)) return false;
+  if (!prefs.begin(kPrefsNamespace, false))
+    return false;
   prefs.putString(kSsidKey, ssid);
   prefs.putString(kPasswordKey, password);
   prefs.end();

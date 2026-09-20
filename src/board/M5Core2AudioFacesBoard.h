@@ -39,9 +39,8 @@ public:
                  int8_t &mclk) override;
   bool supportsAudioOutputSelection() const override { return true; }
   bool headphonesInserted() override;
-  bool getAudioOutputPinout(AudioOutput output, uint8_t &bclk,
-                            uint8_t &lrck, uint8_t &dout,
-                            int8_t &mclk) override;
+  bool getAudioOutputPinout(AudioOutput output, uint8_t &bclk, uint8_t &lrck,
+                            uint8_t &dout, int8_t &mclk) override;
   void setAudioOutput(AudioOutput output) override;
   void setAudioSampleRate(uint32_t sample_rate) override;
   void setAudioActive(bool active) override;

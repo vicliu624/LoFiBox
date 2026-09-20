@@ -269,8 +269,10 @@ bool M5Core2AudioFacesBoard::readTouch(TouchState *state) {
   const auto touch = M5.Touch.getDetail(0);
   const int max_x = static_cast<int>(M5.Display.width()) - 1;
   const int max_y = static_cast<int>(M5.Display.height()) - 1;
-  state->x = static_cast<uint16_t>(constrain(static_cast<int>(touch.x), 0, max_x));
-  state->y = static_cast<uint16_t>(constrain(static_cast<int>(touch.y), 0, max_y));
+  state->x =
+      static_cast<uint16_t>(constrain(static_cast<int>(touch.x), 0, max_x));
+  state->y =
+      static_cast<uint16_t>(constrain(static_cast<int>(touch.y), 0, max_y));
   state->pressed = touch.isPressed();
   if (!state->pressed) {
     touch_pressed_ = false;
@@ -314,7 +316,7 @@ bool M5Core2AudioFacesBoard::initAudio(uint8_t &bclk, uint8_t &lrck,
   // record and playback by default, which needlessly keeps the mic bias and
   // ADC path powered. Disable the entire ADC section after its generic init.
   ok &= M5.In_I2C.writeRegister8(ES8388_ADDR, ES8388_ADCPOWER, 0xFF,
-                                  M5FACES_I2C_FREQ_STANDARD);
+                                 M5FACES_I2C_FREQ_STANDARD);
   codec_ready_ = ok;
   // ES8388::init enables the output path. Mark it active so the following
   // idle transition actually gates that path before any track starts.
@@ -332,16 +334,16 @@ bool M5Core2AudioFacesBoard::initAudio(uint8_t &bclk, uint8_t &lrck,
 bool M5Core2AudioFacesBoard::headphonesInserted() {
   uint8_t inserted = 0;
   if (!M5.In_I2C.readRegister(kModuleAudioControllerAddress,
-                              kModuleAudioHeadphoneStatusRegister, &inserted,
-                              1, M5FACES_I2C_FREQ_STANDARD)) {
+                              kModuleAudioHeadphoneStatusRegister, &inserted, 1,
+                              M5FACES_I2C_FREQ_STANDARD)) {
     return false;
   }
   return inserted == 1;
 }
 
-bool M5Core2AudioFacesBoard::getAudioOutputPinout(
-    AudioOutput output, uint8_t &bclk, uint8_t &lrck, uint8_t &dout,
-    int8_t &mclk) {
+bool M5Core2AudioFacesBoard::getAudioOutputPinout(AudioOutput output,
+                                                  uint8_t &bclk, uint8_t &lrck,
+                                                  uint8_t &dout, int8_t &mclk) {
   if (output == AudioOutput::Headphones) {
     bclk = M5.getPin(m5::pin_name_t::mbus_pin22);
     lrck = M5.getPin(m5::pin_name_t::mbus_pin21);
@@ -383,7 +385,7 @@ void M5Core2AudioFacesBoard::updateExternalCodecOutput() {
       audio_active_ && audio_output_ == AudioOutput::Headphones;
   codec_.setDACmute(!headphones_active);
   codec_.setDACOutput(headphones_active ? DAC_OUTPUT_ALL
-                                         : static_cast<es_dac_output_t>(0));
+                                        : static_cast<es_dac_output_t>(0));
 }
 
 void M5Core2AudioFacesBoard::setAudioOutput(AudioOutput output) {
@@ -450,7 +452,7 @@ void M5Core2AudioFacesBoard::setAudioActive(bool active) {
 }
 
 void M5Core2AudioFacesBoard::updateMusicLights(uint8_t level, bool playing,
-                                                bool enabled) {
+                                               bool enabled) {
   const bool active = enabled && playing;
   const uint32_t now = millis();
   static uint32_t last_diagnostic_ms = 0;
@@ -482,12 +484,12 @@ void M5Core2AudioFacesBoard::updateMusicLights(uint8_t level, bool playing,
   const uint8_t head = position < kBottom3PixelsPerSide
                            ? position
                            : static_cast<uint8_t>(8U - position);
-  const uint8_t base = static_cast<uint8_t>(18U +
-      (static_cast<uint16_t>(level) * 72U) / 100U);
+  const uint8_t base =
+      static_cast<uint8_t>(18U + (static_cast<uint16_t>(level) * 72U) / 100U);
   for (uint8_t pixel = 0; pixel < kBottom3PixelsPerSide; ++pixel) {
     const uint8_t distance = pixel > head ? pixel - head : head - pixel;
-    const uint8_t trail = distance >= 5 ? 0 :
-        static_cast<uint8_t>((5U - distance) * 51U);
+    const uint8_t trail =
+        distance >= 5 ? 0 : static_cast<uint8_t>((5U - distance) * 51U);
     // Add a faint blue underglow so the physical two-side layout remains
     // legible between beats, then layer a cyan/magenta travelling highlight.
     const uint8_t intensity = static_cast<uint8_t>(

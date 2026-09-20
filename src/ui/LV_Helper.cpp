@@ -438,8 +438,8 @@ void beginLvglHelper() {
       heap_caps_malloc(buffer_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
 
 #if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
-  Serial.printf("[CORE2] LVGL %ux%u draw=%uB x2 internal=%s\n", width,
-                height, static_cast<unsigned>(buffer_size),
+  Serial.printf("[CORE2] LVGL %ux%u draw=%uB x2 internal=%s\n", width, height,
+                static_cast<unsigned>(buffer_size),
                 (s_buf1 && s_buf2) ? "ok" : "failed");
 #endif
 

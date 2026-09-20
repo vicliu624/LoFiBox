@@ -43,7 +43,8 @@ void style_text(lv_obj_t *object, lv_color_t color) {
 }
 
 void refresh(UiScreen &screen) {
-  if (!s_view.value) return;
+  if (!s_view.value)
+    return;
   const bool ssid = screen.state.wifi_editing_ssid;
   String display = editing_value(screen);
   if (!ssid) {
@@ -52,11 +53,13 @@ void refresh(UiScreen &screen) {
       display += '*';
     }
   }
-  if (display.isEmpty()) display = ssid ? "Enter network name" : "Enter password (or leave empty)";
-  lv_label_set_text(s_view.title, ssid ? "Wi-Fi network name" : "Wi-Fi password");
+  if (display.isEmpty())
+    display = ssid ? "Enter network name" : "Enter password (or leave empty)";
+  lv_label_set_text(s_view.title,
+                    ssid ? "Wi-Fi network name" : "Wi-Fi password");
   lv_label_set_text(s_view.value, display.c_str());
-  lv_label_set_text(s_view.hint,
-                    ssid ? "Select chars, then NEXT or SAVE" : "Select chars, then SAVE to connect");
+  lv_label_set_text(s_view.hint, ssid ? "Select chars, then NEXT or SAVE"
+                                      : "Select chars, then SAVE to connect");
 
   const char *set = keyset(screen.state.wifi_keyset);
   for (uint8_t row = 0; row < kCharacterRows; ++row) {
@@ -72,8 +75,8 @@ void refresh(UiScreen &screen) {
   }
   for (uint8_t row = 0; row <= kCharacterRows; ++row) {
     for (uint8_t col = 0; col < kColumns; ++col) {
-      const bool selected = row == screen.state.wifi_key_row &&
-                            col == screen.state.wifi_key_col;
+      const bool selected =
+          row == screen.state.wifi_key_row && col == screen.state.wifi_key_col;
       lv_obj_set_style_bg_color(s_view.cells[row][col],
                                 selected ? lv_color_hex(0x2f76d2)
                                          : lv_color_hex(0x1a1e24),
@@ -96,7 +99,8 @@ void activate(UiScreen &screen) {
   const uint8_t row = screen.state.wifi_key_row;
   const uint8_t col = screen.state.wifi_key_col;
   if (row < kCharacterRows) {
-    editing_value(screen) += keyset(screen.state.wifi_keyset)[row * kColumns + col];
+    editing_value(screen) +=
+        keyset(screen.state.wifi_keyset)[row * kColumns + col];
     refresh(screen);
     return;
   }
@@ -111,7 +115,8 @@ void activate(UiScreen &screen) {
     screen.state.wifi_keyset = 2;
     break;
   case 3:
-    if (!editing_value(screen).isEmpty()) editing_value(screen).remove(editing_value(screen).length() - 1);
+    if (!editing_value(screen).isEmpty())
+      editing_value(screen).remove(editing_value(screen).length() - 1);
     break;
   case 4:
     editing_value(screen) = "";
@@ -139,7 +144,8 @@ void activate(UiScreen &screen) {
 
 void key_cb(lv_event_t *event) {
   auto *screen = static_cast<UiScreen *>(lv_event_get_user_data(event));
-  if (!screen_alive(screen) || lv_event_get_code(event) != LV_EVENT_KEY) return;
+  if (!screen_alive(screen) || lv_event_get_code(event) != LV_EVENT_KEY)
+    return;
   const uint32_t key = lv_event_get_key(event);
   if (key == LV_KEY_ESC || key == LV_KEY_BACKSPACE) {
     if (key == LV_KEY_BACKSPACE && !editing_value(*screen).isEmpty()) {
@@ -176,14 +182,17 @@ void key_cb(lv_event_t *event) {
 }
 
 void cell_tap_cb(lv_event_t *event) {
-  if (lv_event_get_code(event) != LV_EVENT_CLICKED) return;
+  if (lv_event_get_code(event) != LV_EVENT_CLICKED)
+    return;
   auto *screen = static_cast<UiScreen *>(lv_event_get_user_data(event));
-  if (!screen_alive(screen)) return;
+  if (!screen_alive(screen))
+    return;
 
   lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(event));
   for (uint8_t row = 0; row <= kCharacterRows; ++row) {
     for (uint8_t col = 0; col < kColumns; ++col) {
-      if (s_view.cells[row][col] != target) continue;
+      if (s_view.cells[row][col] != target)
+        continue;
       screen->state.wifi_key_row = row;
       screen->state.wifi_key_col = col;
       activate(*screen);
@@ -196,7 +205,8 @@ void cell_tap_cb(lv_event_t *event) {
 void build_credentials(UiScreen &screen) {
   s_view = {};
   lv_obj_t *content = screen.view.root.content;
-  if (!content) return;
+  if (!content)
+    return;
   lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(content, lv_color_hex(0x0d0f12), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(content, LV_OPA_COVER, LV_PART_MAIN);
@@ -222,10 +232,11 @@ void build_credentials(UiScreen &screen) {
   const lv_coord_t grid_y = 62;
   const lv_coord_t row_h = (height - grid_y - 3) / 5;
   const lv_coord_t cell_w = (width - 8) / kColumns;
-  Serial.printf("[WIFI UI] credentials ssid=%s field=%s content=%dx%d cell=%dx%d\n",
-                screen.state.wifi_ssid.c_str(),
-                screen.state.wifi_editing_ssid ? "ssid" : "password", width,
-                height, cell_w - 2, row_h - 2);
+  Serial.printf(
+      "[WIFI UI] credentials ssid=%s field=%s content=%dx%d cell=%dx%d\n",
+      screen.state.wifi_ssid.c_str(),
+      screen.state.wifi_editing_ssid ? "ssid" : "password", width, height,
+      cell_w - 2, row_h - 2);
 
   s_view.title = lv_label_create(content);
   lv_obj_set_pos(s_view.title, 4, 1);
@@ -236,7 +247,8 @@ void build_credentials(UiScreen &screen) {
   lv_obj_set_size(s_view.value, width - 8, 22);
   lv_obj_set_style_bg_color(s_view.value, lv_color_hex(0x1a2029), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(s_view.value, LV_OPA_COVER, LV_PART_MAIN);
-  lv_obj_set_style_border_color(s_view.value, lv_color_hex(0x4a617a), LV_PART_MAIN);
+  lv_obj_set_style_border_color(s_view.value, lv_color_hex(0x4a617a),
+                                LV_PART_MAIN);
   lv_obj_set_style_border_width(s_view.value, 1, LV_PART_MAIN);
   style_text(s_view.value, lv_color_hex(0xffffff));
   lv_label_set_long_mode(s_view.value, LV_LABEL_LONG_DOT);

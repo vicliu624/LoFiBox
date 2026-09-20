@@ -15,7 +15,8 @@
 
 // I2S descriptors and their DMA-capable payloads must reside in internal RAM.
 // Boards with large PSRAM still have a comparatively small internal DMA heap.
-// Keep the upstream defaults unless a board environment provides tighter limits.
+// Keep the upstream defaults unless a board environment provides tighter
+// limits.
 #ifndef AUDIO_I2S_DMA_BUF_COUNT
 #define AUDIO_I2S_DMA_BUF_COUNT 16
 #endif

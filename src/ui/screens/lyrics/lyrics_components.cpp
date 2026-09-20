@@ -1,8 +1,8 @@
 #include "ui/screens/lyrics/lyrics_components.h"
 
 #include "app/lyrics.h"
-#include "app/player.h"
 #include "app/network.h"
+#include "app/player.h"
 #include "ui/fonts/fonts.h"
 
 namespace lofi::ui::screens::lyrics {
@@ -41,11 +41,10 @@ void fill_lines(int active) {
     }
     lv_label_set_text(label, app::lyrics_line_text(index));
     const int distance = index - active;
-    const lv_color_t color = distance == 0
-                                 ? lv_color_hex(0xffffff)
-                                 : (distance >= -1 && distance <= 1)
-                                       ? lv_color_hex(0xc6ccd4)
-                                       : lv_color_hex(0x717780);
+    const lv_color_t color = distance == 0 ? lv_color_hex(0xffffff)
+                             : (distance >= -1 && distance <= 1)
+                                 ? lv_color_hex(0xc6ccd4)
+                                 : lv_color_hex(0x717780);
     lv_obj_set_style_text_color(label, color, LV_PART_MAIN);
   }
 }
@@ -60,7 +59,8 @@ void animate_to_rest(lv_coord_t start_y) {
   lv_anim_set_time(&animation, 180);
   lv_anim_set_path_cb(&animation, lv_anim_path_ease_out);
   lv_anim_set_exec_cb(&animation, [](void *target, int32_t value) {
-    lv_obj_set_y(static_cast<lv_obj_t *>(target), static_cast<lv_coord_t>(value));
+    lv_obj_set_y(static_cast<lv_obj_t *>(target),
+                 static_cast<lv_coord_t>(value));
   });
   lv_anim_start(&animation);
 }
@@ -178,12 +178,14 @@ void update(UiScreen &screen) {
   if (!has_track || !lyrics.synchronized || lyrics.track_index != track_index) {
     lv_obj_add_flag(s_view.viewport, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_view.empty, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(s_view.empty,
-                      has_track
-                          ? (app::network::connected()
-                                 ? "Lyrics unavailable\nReturn to Now Playing and press Up to download"
-                                 : "Wi-Fi is not connected\nOpen Settings > Wi-Fi setup")
-                                : "No track selected");
+    lv_label_set_text(
+        s_view.empty,
+        has_track
+            ? (app::network::connected()
+                   ? "Lyrics unavailable\nReturn to Now Playing and press Up "
+                     "to download"
+                   : "Wi-Fi is not connected\nOpen Settings > Wi-Fi setup")
+            : "No track selected");
     return;
   }
   lv_obj_clear_flag(s_view.viewport, LV_OBJ_FLAG_HIDDEN);

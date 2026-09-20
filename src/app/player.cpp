@@ -13,8 +13,8 @@
 #include <freertos/task.h>
 #endif
 
-#include "board/BoardBase.h"
 #include "app/lyrics.h"
+#include "board/BoardBase.h"
 
 namespace app {
 namespace {
@@ -25,8 +25,7 @@ static uint32_t s_last_sample_rate = 0;
 static uint32_t s_clock_seconds = 0;
 static uint32_t s_clock_mark_ms = 0;
 static uint32_t s_last_output_detect_ms = 0;
-static BoardBase::AudioOutput s_active_output =
-    BoardBase::AudioOutput::Speaker;
+static BoardBase::AudioOutput s_active_output = BoardBase::AudioOutput::Speaker;
 
 #if defined(BOARD_M5STACK_CORE2_AUDIO_FACES)
 // Core2 redraws are synchronous SPI transfers. Keep decoding on the other

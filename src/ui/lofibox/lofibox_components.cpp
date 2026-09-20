@@ -802,7 +802,8 @@ NavCommand handle_intent(UiScreen &screen, const UiIntent &intent) {
       if (resume_after_download) {
         app::player_toggle_pause(*screen.player);
       }
-      Serial.printf("[LYRICS] download %s\n", downloaded ? "complete" : "failed");
+      Serial.printf("[LYRICS] download %s\n",
+                    downloaded ? "complete" : "failed");
     }
     cmd.type = NavCommand::Type::NavigateTo;
     cmd.target = PageId::Lyrics;
