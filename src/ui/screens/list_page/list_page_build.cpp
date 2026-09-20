@@ -174,6 +174,8 @@ BuildApi api_for(PageId id) {
         screens::playlist_detail::input::attach_row,
         screens::playlist_detail::input::focus_first);
   case PageId::Settings:
+  case PageId::AudioOutputSettings:
+  case PageId::WifiSettings:
     return make_list_api(screens::settings::styles::init_once,
                          screens::settings::styles::apply_content,
                          screens::settings::styles::apply_list,
@@ -240,6 +242,12 @@ void populate_list(UiScreen &screen) {
     break;
   case PageId::Settings:
     screens::settings::populate(screen);
+    break;
+  case PageId::AudioOutputSettings:
+    screens::settings::populate_audio_output(screen);
+    break;
+  case PageId::WifiSettings:
+    screens::settings::populate_wifi(screen);
     break;
   case PageId::About:
     screens::about::populate(screen);

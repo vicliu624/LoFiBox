@@ -13,6 +13,17 @@
 #include "flac_decoder/flac_decoder.h"
 #include "mp3_decoder/mp3_decoder.h"
 
+// I2S descriptors and their DMA-capable payloads must reside in internal RAM.
+// Boards with large PSRAM still have a comparatively small internal DMA heap.
+// Keep the upstream defaults unless a board environment provides tighter limits.
+#ifndef AUDIO_I2S_DMA_BUF_COUNT
+#define AUDIO_I2S_DMA_BUF_COUNT 16
+#endif
+
+#ifndef AUDIO_I2S_DMA_BUF_LEN
+#define AUDIO_I2S_DMA_BUF_LEN 512
+#endif
+
 #ifdef SDFATFS_USED
 fs::SDFATFS SD_SDFAT;
 #endif
@@ -185,8 +196,8 @@ Audio::Audio(bool internalDAC /* = false */,
   m_i2s_config.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
   m_i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
   m_i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1; // interrupt priority
-  m_i2s_config.dma_buf_count = 16;
-  m_i2s_config.dma_buf_len = 512;
+  m_i2s_config.dma_buf_count = AUDIO_I2S_DMA_BUF_COUNT;
+  m_i2s_config.dma_buf_len = AUDIO_I2S_DMA_BUF_LEN;
   m_i2s_config.use_apll = APLL_DISABLE;   // must be disabled in V2.0.1-RC1
   m_i2s_config.tx_desc_auto_clear = true; // new in V1.0.1
   m_i2s_config.fixed_mclk = I2S_PIN_NO_CHANGE;
@@ -213,7 +224,11 @@ Audio::Audio(bool internalDAC /* = false */,
         (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S_MSB);
 #endif
 
-    i2s_driver_install((i2s_port_t)m_i2s_num, &m_i2s_config, 0, NULL);
+    if (i2s_driver_install((i2s_port_t)m_i2s_num, &m_i2s_config, 0, NULL) !=
+        ESP_OK) {
+      log_e("I2S driver install failed");
+      return;
+    }
     i2s_set_dac_mode((i2s_dac_mode_t)m_f_channelEnabled);
     if (m_f_channelEnabled != I2S_DAC_CHANNEL_BOTH_EN) {
       m_f_forceMono = true;
@@ -232,7 +247,11 @@ Audio::Audio(bool internalDAC /* = false */,
         (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB);
 #endif
 
-    i2s_driver_install((i2s_port_t)m_i2s_num, &m_i2s_config, 0, NULL);
+    if (i2s_driver_install((i2s_port_t)m_i2s_num, &m_i2s_config, 0, NULL) !=
+        ESP_OK) {
+      log_e("I2S driver install failed");
+      return;
+    }
     m_f_forceMono = false;
   }
 

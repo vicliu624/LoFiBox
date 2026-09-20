@@ -2,14 +2,41 @@
 
 #include <Arduino.h>
 #include <SD.h>
+#include <cstdlib>
+#include <new>
+
+#if defined(BOARD_HAS_PSRAM)
+#include <esp_heap_caps.h>
+#endif
 
 #include "ui/fonts/fonts.h"
+#include "app/network.h"
 #include "ui/lofibox/lofibox_components.h"
 #include "ui/lofibox/lofibox_ui_internal.h"
 
 namespace lofi::ui {
 namespace {
 UiScreen s_screen;
+
+template <typename T> T *allocate_ui_array(size_t count) {
+  void *storage = nullptr;
+#if defined(BOARD_HAS_PSRAM)
+  storage = heap_caps_malloc(sizeof(T) * count,
+                             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#endif
+  if (!storage) {
+    storage = malloc(sizeof(T) * count);
+  }
+  if (!storage) {
+    return nullptr;
+  }
+
+  auto *array = static_cast<T *>(storage);
+  for (size_t i = 0; i < count; ++i) {
+    new (&array[i]) T();
+  }
+  return array;
+}
 
 void timer_delete(lv_timer_t *timer) {
 #if defined(LVGL_VERSION_MAJOR) && (LVGL_VERSION_MAJOR >= 9)
@@ -64,13 +91,14 @@ void now_playing_timer_cb(lv_timer_t *timer) {
     return;
   }
   components::update_now_playing(*screen);
+  components::update_lyrics(*screen);
 }
 
 void start_timers(UiScreen &screen) {
   screen.timers.reset();
   screen.timers.create(TimerDomain::ScreenGeneral, battery_timer_cb, 60000,
                        &screen);
-  screen.timers.create(TimerDomain::NowPlaying, now_playing_timer_cb, 500,
+  screen.timers.create(TimerDomain::NowPlaying, now_playing_timer_cb, 100,
                        &screen);
 }
 
@@ -311,6 +339,16 @@ bool screen_alive(const UiScreen *screen) { return screen && screen->alive; }
 
 void init(app::Library *library, app::PlayerState *player) {
   init_font_fallbacks();
+  if (!s_screen.items) {
+    s_screen.items = allocate_ui_array<ListItem>(UiScreen::kMaxItems);
+  }
+  if (!s_screen.rows) {
+    s_screen.rows = allocate_ui_array<RowMeta>(UiScreen::kMaxItems);
+  }
+  if (!s_screen.items || !s_screen.rows) {
+    Serial.println("[UI] Failed to allocate list storage");
+    return;
+  }
   s_screen.alive = false;
   s_screen.has_pending_intent = false;
   s_screen.pending_intent = {};
@@ -342,6 +380,19 @@ void init(app::Library *library, app::PlayerState *player) {
 
 void tick() {
   if (!screen_alive(&s_screen)) {
+    return;
+  }
+  if (s_screen.state.current == PageId::WifiSettings &&
+      app::network::take_scan_changed()) {
+    rebuild_current(s_screen);
+    return;
+  }
+  if ((s_screen.state.current == PageId::Settings ||
+       s_screen.state.current == PageId::AudioOutputSettings) &&
+      s_screen.player &&
+      s_screen.state.last_audio_output_version !=
+          s_screen.player->audio_output_version) {
+    rebuild_current(s_screen);
     return;
   }
   if (!s_screen.has_pending_intent) {

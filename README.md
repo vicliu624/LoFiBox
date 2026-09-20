@@ -11,11 +11,17 @@ It focuses on doing a few things well:
 
 * Local **MP3 / WAV playback** from SD card
 * **Multi-band EQ** with real-time adjustment
+* Real-time scrolling lyrics with optional on-device Wi-Fi download and cache
 * Simple, button-driven UI inspired by classic devices (iPod-style navigation)
 * Predictable CPU and memory usage, suitable for long-running embedded systems
 
 LoFiBox is not a streaming app, and it is not Hi-Fi.
-It is a small player that runs entirely on the device, without networks, accounts, or background services.
+It is a small player that runs entirely on the device without requiring
+networks, accounts, or background services.
+
+> **0.2.0-beta.1** adds a supported Core2 + Audio Module + Faces Gamepad3
+> hardware target alongside T-LoRa Pager and Cardputer. Wi-Fi remains off by
+> default and is used only for an explicit lyric download request.
 
 ---
 

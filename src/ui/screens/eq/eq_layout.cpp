@@ -89,6 +89,11 @@ EqLayout create(lv_obj_t *content) {
     graph_y += extra_y / 2;
   }
   lv_coord_t graph_w = panel_w - pad_l - pad_r;
+  // The original layout reserves columns for duplicate frequency labels and
+  // three dB captions.  At 320 px this leaves the dB column too narrow for
+  // "+12 dB" and places the gain value directly over the slider knob.  Use a
+  // compact, slider-first layout on narrow displays instead.
+  const bool compact_layout = panel_w <= 360;
   refs.graph = lv_obj_create(refs.panel);
   lv_obj_set_pos(refs.graph, graph_x, graph_y);
   lv_obj_set_size(refs.graph, graph_w, graph_h);
@@ -100,9 +105,10 @@ EqLayout create(lv_obj_t *content) {
   if (gap < scale_w(2)) {
     gap = scale_w(2);
   }
-  lv_coord_t label_w = (graph_w * 20) / 100;
-  lv_coord_t db_w = (graph_w * 9) / 100;
-  lv_coord_t slider_area_w = (graph_w * 64) / 100;
+  lv_coord_t label_w = compact_layout ? 0 : (graph_w * 20) / 100;
+  lv_coord_t db_w = compact_layout ? 0 : (graph_w * 9) / 100;
+  lv_coord_t slider_area_w =
+      compact_layout ? graph_w : (graph_w * 64) / 100;
   lv_coord_t right_pad = graph_w - label_w - db_w - gap * 2 - slider_area_w;
   lv_coord_t min_slider_area = scale_w(120);
   if (slider_area_w < min_slider_area) {
@@ -136,6 +142,9 @@ EqLayout create(lv_obj_t *content) {
   lv_obj_set_style_outline_width(label_col, 0, LV_PART_MAIN);
   lv_obj_set_style_pad_all(label_col, 0, LV_PART_MAIN);
   lv_obj_move_foreground(label_col);
+  if (compact_layout) {
+    lv_obj_add_flag(label_col, LV_OBJ_FLAG_HIDDEN);
+  }
 
   lv_coord_t label_y = scale_h(6);
   lv_coord_t label_step = (graph_inner_h - scale_h(12)) / 6;
@@ -155,6 +164,9 @@ EqLayout create(lv_obj_t *content) {
   lv_obj_set_style_outline_width(scale_col, 0, LV_PART_MAIN);
   lv_obj_set_style_pad_all(scale_col, 0, LV_PART_MAIN);
   lv_obj_move_foreground(scale_col);
+  if (compact_layout) {
+    lv_obj_add_flag(scale_col, LV_OBJ_FLAG_HIDDEN);
+  }
 
   refs.db_top = lv_label_create(scale_col);
   refs.db_mid = lv_label_create(scale_col);
@@ -167,7 +179,9 @@ EqLayout create(lv_obj_t *content) {
   lv_label_set_text(refs.db_bottom, "-12 dB");
 
   lv_obj_t *slider_area = lv_obj_create(refs.panel);
-  lv_coord_t slider_x = graph_x + label_w + db_w + gap * 2 + right_pad / 2;
+  lv_coord_t slider_x = compact_layout
+                            ? graph_x
+                            : graph_x + label_w + db_w + gap * 2 + right_pad / 2;
   lv_obj_set_pos(slider_area, slider_x, graph_y);
   lv_obj_set_size(slider_area, slider_area_w, graph_inner_h);
   lv_obj_clear_flag(slider_area, LV_OBJ_FLAG_SCROLLABLE);
@@ -178,7 +192,7 @@ EqLayout create(lv_obj_t *content) {
   lv_obj_set_style_pad_all(slider_area, 0, LV_PART_MAIN);
   lv_obj_move_foreground(slider_area);
 
-  lv_coord_t bottom_label_h = scale_h(24);
+  lv_coord_t bottom_label_h = scale_h(compact_layout ? 20 : 24);
   lv_coord_t grid_h = graph_inner_h - bottom_label_h - scale_h(4);
   if (grid_h < scale_h(60)) {
     grid_h = scale_h(60);
@@ -225,8 +239,13 @@ EqLayout create(lv_obj_t *content) {
   }
   lv_coord_t slider_h = scale_h(kBaseSliderHeight);
   lv_coord_t slider_margin = scale_h(6);
-  if (slider_h > grid_h - slider_margin) {
-    slider_h = grid_h - slider_margin;
+  lv_coord_t slider_max_h = grid_h - slider_margin;
+  if (compact_layout) {
+    // Reserve a dedicated row for the value so it can never cover the knob.
+    slider_max_h -= scale_h(20);
+  }
+  if (slider_h > slider_max_h) {
+    slider_h = slider_max_h;
   }
   if (slider_h < scale_h(48)) {
     slider_h = scale_h(48);
@@ -249,14 +268,16 @@ EqLayout create(lv_obj_t *content) {
 
     lv_obj_t *slider = lv_slider_create(refs.slider_cols[i]);
     lv_obj_set_size(slider, slider_w, slider_h);
-    lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(slider, compact_layout ? LV_ALIGN_BOTTOM_MID : LV_ALIGN_CENTER,
+                 0, compact_layout ? -slider_margin : 0);
     lv_slider_set_range(slider, -12, 12);
     lv_slider_set_value(slider, 0, LV_ANIM_OFF);
     refs.sliders[i] = slider;
 
     refs.value_labels[i] = lv_label_create(refs.slider_cols[i]);
     lv_obj_set_width(refs.value_labels[i], col_w);
-    lv_obj_align(refs.value_labels[i], LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(refs.value_labels[i],
+                 compact_layout ? LV_ALIGN_TOP_MID : LV_ALIGN_CENTER, 0, 0);
   }
 
   lv_obj_t *bottom_labels = lv_obj_create(refs.panel);

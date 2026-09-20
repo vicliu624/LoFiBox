@@ -12,12 +12,21 @@ enum class PlaybackMode {
   RepeatOne,
 };
 
+enum class AudioOutputMode {
+  Auto = 0,
+  Speaker,
+  Headphones,
+};
+
 struct PlayerState {
   int current_index = -1;
   bool is_playing = false;
   bool paused = false;
   PlaybackMode mode = PlaybackMode::Sequential;
-  uint8_t volume = 12;
+  uint8_t volume = 16;
+  AudioOutputMode audio_output_mode = AudioOutputMode::Auto;
+  bool headphones_active = false;
+  uint32_t audio_output_version = 0;
   String cover_path = "";
   bool cover_ready = false;
   uint32_t cover_version = 0;
@@ -37,8 +46,12 @@ void player_prev(PlayerState &state);
 void player_stop(PlayerState &state);
 uint8_t player_get_volume(const PlayerState &state);
 void player_set_volume(PlayerState &state, uint8_t volume);
+void player_set_audio_output_mode(PlayerState &state, AudioOutputMode mode);
+const char *player_audio_output_mode_name(AudioOutputMode mode);
+String player_audio_output_label(const PlayerState &state);
 
 uint32_t player_current_time();
+uint32_t player_current_time_ms();
 uint32_t player_duration();
 uint32_t player_sample_rate();
 uint8_t player_channels();

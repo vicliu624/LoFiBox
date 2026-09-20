@@ -2,6 +2,7 @@
 
 #include <SD.h>
 
+#include "app/version.h"
 #include "board/BoardBase.h"
 
 namespace lofi::ui::screens::about {
@@ -40,7 +41,7 @@ void populate(UiScreen &screen) {
   format_storage(storage, sizeof(storage));
   components::add_item(screen, "Storage", storage, UiIntentKind::None,
                        PageId::None);
-  components::add_item(screen, "Version", "0.1.0-alpha", UiIntentKind::None,
+  components::add_item(screen, "Version", LOFIBOX_VERSION, UiIntentKind::None,
                        PageId::None);
   components::add_item(screen, "Keys", "Global", UiIntentKind::None,
                        PageId::None);

@@ -4,6 +4,19 @@
 
 class BoardBase {
 public:
+  // A board can expose more than one physical playback path. The player
+  // selects the route, then asks the board for the matching I2S pinout.
+  enum class AudioOutput {
+    Speaker = 0,
+    Headphones,
+  };
+
+  struct TouchState {
+    uint16_t x = 0;
+    uint16_t y = 0;
+    bool pressed = false;
+  };
+
   virtual ~BoardBase() = default;
 
   virtual uint32_t begin(uint32_t disable_hw_init = 0) = 0;
@@ -24,6 +37,15 @@ public:
 
   // Input
   virtual bool readKey(uint32_t *key) = 0;
+  // Returns whether this board has a touch controller.  Boards without one
+  // retain the default false result; supported boards always fill `state`,
+  // including a released sample when no finger is down.
+  virtual bool readTouch(TouchState *state) {
+    if (state) {
+      *state = {};
+    }
+    return false;
+  }
 
   // Display
   virtual uint16_t displayWidth() const = 0;
@@ -37,6 +59,40 @@ public:
   // Audio
   virtual bool initAudio(uint8_t &bclk, uint8_t &lrck, uint8_t &dout,
                          int8_t &mclk) = 0;
+
+  // Boards with a local speaker plus a separate headphone codec can opt in
+  // to runtime routing. The defaults retain the single-output behaviour of
+  // Pager and the other existing targets.
+  virtual bool supportsAudioOutputSelection() const { return false; }
+  virtual bool headphonesInserted() { return false; }
+  virtual bool getAudioOutputPinout(AudioOutput output, uint8_t &bclk,
+                                    uint8_t &lrck, uint8_t &dout,
+                                    int8_t &mclk) {
+    (void)output;
+    (void)bclk;
+    (void)lrck;
+    (void)dout;
+    (void)mclk;
+    return false;
+  }
+  virtual void setAudioOutput(AudioOutput output) { (void)output; }
+
+  // Called by the player when its decoder changes the I2S sample rate. Boards
+  // without a separately clocked codec can retain the default no-op behavior.
+  virtual void setAudioSampleRate(uint32_t sample_rate) { (void)sample_rate; }
+
+  // Called when the player begins or stops supplying PCM.  A hardware codec
+  // can mute/power-gate its output path while the player is idle.
+  virtual void setAudioActive(bool active) { (void)active; }
+
+  // Optional visualizers. The board receives the already-smoothed PCM level
+  // from the foreground loop, so LED I2C traffic never runs in the decoder.
+  virtual bool supportsMusicLights() const { return false; }
+  virtual void updateMusicLights(uint8_t level, bool playing, bool enabled) {
+    (void)level;
+    (void)playing;
+    (void)enabled;
+  }
 };
 
 #ifndef DEVICE_MAX_BRIGHTNESS_LEVEL

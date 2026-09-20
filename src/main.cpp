@@ -3,6 +3,8 @@
 
 #include "app/eq_dsp.h"
 #include "app/library.h"
+#include "app/music_lights.h"
+#include "app/network.h"
 #include "app/player.h"
 #include "board/BoardBase.h"
 #include "ui/LV_Helper.h"
@@ -64,6 +66,8 @@ void setup() {
   app::library_reset(s_library);
   app::eq::init();
   app::eq::load_settings();
+  app::music_lights::init();
+  app::network::init();
   show_boot_screen();
   const uint32_t boot_start = millis();
   app::library_scan(s_library, SD, "/music", 8, app::kMaxTracks, true,
@@ -82,9 +86,17 @@ void setup() {
 void loop() {
   board.handlePowerButton();
   app::player_loop(s_player);
+  app::network::tick();
   app::eq::tick();
   lofi::ui::tick();
   lvHelperTick();
   lv_timer_handler();
-  delay(2);
+  // Rendering a touched/focused LVGL page can occupy several milliseconds on
+  // Core2's SPI LCD. Feed the decoder again immediately afterwards so that a
+  // UI action cannot turn into an I2S underrun click.
+  app::player_loop(s_player);
+  board.updateMusicLights(app::music_lights::level(),
+                          s_player.is_playing && !s_player.paused,
+                          app::music_lights::enabled());
+  delay(1);
 }

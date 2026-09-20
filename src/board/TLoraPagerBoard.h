@@ -1,6 +1,9 @@
 #pragma once
 
 #include "BoardBase.h"
+
+#if defined(BOARD_TLORA_PAGER)
+
 #include "display/DisplayInterface.h"
 #include "display/drivers/ST7796.h"
 #include "pins_arduino.h"
@@ -48,3 +51,5 @@ private:
   ExtensionIOXL9555 io_;
   bool display_ready_ = false;
 };
+
+#endif // defined(BOARD_TLORA_PAGER)
